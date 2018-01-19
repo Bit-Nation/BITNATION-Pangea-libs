@@ -15,7 +15,9 @@ const EthTx = require('ethereumjs-tx');
 const bip39 = require('bip39');
 const ethJsUtils = require('ethereumjs-util');
 const assert = require('assert');
-import {AMOUNT_OF_ADDRESSES_CHANGED} from '../events';
+const Web3 = require('web3');
+const BigNumber = require('bignumber.js');
+import {AMOUNT_OF_ADDRESSES_CHANGED, ETH_TX_SIGN} from '../events';
 
 const PRIVATE_ETH_KEY_PREFIX = 'PRIVATE_ETH_KEY#';
 
@@ -86,7 +88,7 @@ export interface EthUtilsInterface {
      * ethUtilsInstance.signTx('I_AM_A_HEX_PRIVATE_KEY', {from: xyz})
      *
      */
-    signTx: (txData: TxData, privkey: string) => Promise<EthTx>,
+    signTx: (txData: TxData) => Promise<EthTx>,
 
     /**
      * Normalize an ethereum address
@@ -284,31 +286,55 @@ export default function utilsFactory(ss: SecureStorageInterface, ee: EventEmitte
                 topic: topic,
             });
         }),
-        signTx: (txData: TxData, privKey: string): Promise<EthTx> => new Promise((res, rej) => {
-            // Private key as buffer
-            const pKB = Buffer.from(privKey, 'hex');
+        signTx: (txData: TxData): Promise<EthTx> => new Promise((res, rej) => {
 
-            // reject if private key is invalid
-            if (!ethJsUtils.isValidPrivate(pKB)) {
-                return rej(new InvalidPrivateKeyError());
-            }
+            ethUtilsImpl
+                .getPrivateKey(txData.from)
+                .then((pk:PrivateKeyType) => {
 
-            // Sign transaction
-            const tx = new EthTx(txData);
+                    if(pk.encrypted){
+                        return rej("Private key is encrypted. Logic to decrypt the private key must implemented");
+                    }
 
-            /**
-             * client need's to react to this event
-             * in order to sign the transaction
-             */
-            ee.emit('eth:tx:sign', {
-                tx: tx,
-                txData: txData,
-                confirm: () => {
-                    tx.sign(pKB);
-                    res(tx);
-                },
-                abort: () => rej(new AbortedSigningOfTx()),
-            });
+                    // Private key as buffer
+                    const pKB = Buffer.from(pk.value, 'hex');
+
+                    // reject if private key is invalid
+                    if (!ethJsUtils.isValidPrivate(pKB)) {
+                        return rej(new InvalidPrivateKeyError());
+                    }
+
+                    // Make
+                    const tx = new EthTx(txData);
+
+                    // Calculate tx fee's
+                    let txFee = new BigNumber(txData.gas);
+                    txFee = txFee.times(txData.gasPrice).toString(10);
+
+                    const web3 = new Web3();
+
+                    //eth
+                    const value = new BigNumber(txData.value);
+
+                    /**
+                     * client need's to react to this event
+                     * in order to sign the transaction
+                     */
+                    ee.emit(ETH_TX_SIGN, {
+                        from: txData.from,
+                        to: txData.to,
+                        fee: web3.fromWei(txFee, 'ether'),
+                        value: web3.fromWei(value.toString(10), 'ether'),
+                        confirm: () => {
+                            tx.sign(pKB);
+                            res(tx);
+                        },
+                        abort: () => rej(new AbortedSigningOfTx()),
+                    });
+
+
+                })
+                .catch(rej);
         }),
         normalizeAddress(address: string): string {
             const checksumAddress:string = ethereumjsUtils.toChecksumAddress(address);

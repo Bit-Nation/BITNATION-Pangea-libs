@@ -10,6 +10,7 @@ const aes = require('crypto-js/aes');
 
 import utils, {createPrivateKey, savePrivateKey, decryptPrivateKey, signTx, normalizeAddress, normalizePrivateKey} from './utils';
 import {AMOUNT_OF_ADDRESSES_CHANGED} from './../events';
+import nodeJsSecureStorage from "../test_implementations/nodeJsSecureStorage";
 
 // Private key dummy
 const PRIVATE_KEY = '6b270aa6bec685e1c1d55b8b1953a410ab8c650a9dca57c46dd7a0cace55fc22';
@@ -501,12 +502,12 @@ describe('signTx', () => {
     const privateKey:string = 'affd0b4039708432bb2759fc747bf7b9b1fbdab71bf86eab6d812ae83419b708';
 
     // signed transaction
-    const signedTx = 'f864038504a817c80082520894814944ed940f27eb40330882a24baad21c30818e01801ba063a5002e8054f7c95e4520ad4ef7739e8d66adc3a11d511b53b15388d6cd8c84a0212ccf0f79cc23a1f53aa8f90e8210633bceb2c85d6797bd0acfdec874c5b092';
+    const signedTxStr = 'f864038504a817c80082520894814944ed940f27eb40330882a24baad21c30818e01801ba063a5002e8054f7c95e4520ad4ef7739e8d66adc3a11d511b53b15388d6cd8c84a0212ccf0f79cc23a1f53aa8f90e8210633bceb2c85d6797bd0acfdec874c5b092';
 
     /**
      * Sign transaction
      */
-    test('successfully', () => {
+    test('successfully', (done) => {
         const ee = new EE();
 
         // Eventlistener must call the confirm method
@@ -515,27 +516,26 @@ describe('signTx', () => {
             data.confirm();
         });
 
-        const u = utils({}, ee);
+        const ethUtils = utils(nodeJsSecureStorage(), ee);
 
-        // Test promise that signs tx data and transform it to hex string
-        const testPromise = new Promise((res, rej) => {
-            // Const tx
-            const tx = u.signTx(txData, privateKey);
+        ethUtils
+            .savePrivateKey(privateKey)
+            .then(_ => ethUtils.signTx(txData))
+            .then(signedTx => {
 
-            tx
-                .then((signedTx) => {
-                    res(signedTx.serialize().toString('hex'));
-                })
-                .catch((e) => rej(e));
-        });
+                expect(signedTx.serialize().toString('hex')).toBe(signedTxStr);
 
-        return expect(testPromise).resolves.toBe(signedTx);
+                done();
+
+            })
+            .catch();
+
     });
 
     /**
      * Reject the transaction
      */
-    test('rejected', () => {
+    test('rejected', (done) => {
         const ee = new EE();
 
         // Eventlistener must call the confirm method
@@ -544,21 +544,19 @@ describe('signTx', () => {
             data.abort();
         });
 
-        const u = utils({}, ee);
+        const ethUtils = utils(nodeJsSecureStorage(), ee);
 
-        // Test promise that signs tx data and transform it to hex string
-        const testPromise = new Promise((res, rej) => {
-            // Const tx
-            const tx = u.signTx(txData, privateKey);
+        ethUtils
+            .savePrivateKey(privateKey)
+            .then(_ => ethUtils.signTx(txData))
+            .catch(error => {
 
-            tx
-                .then((signedTx) => {
-                    res(signedTx.serialize().toString('hex'));
-                })
-                .catch((e) => rej(e));
-        });
+                expect(error).toEqual(new AbortedSigningOfTx());
 
-        return expect(testPromise).rejects.toEqual(new AbortedSigningOfTx());
+                done();
+
+            });
+
     });
 });
 
