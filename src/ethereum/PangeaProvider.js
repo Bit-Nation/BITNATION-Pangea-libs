@@ -31,23 +31,9 @@ export function getAccounts(ethUtils: EthUtilsInterface): (cb: (error: Error | n
 export function signTx(ethUtils: EthUtilsInterface): (txData: TxData, cb: (error: any, signedTx: any) => void) => void {
     return (txData: TxData, cb: (error: any, signedTx: any) => void): void => {
         ethUtils
-            .getPrivateKey(txData.from)
-            .then(async function(privateKey: PrivateKeyType) {
-                try {
-                    let pk:string = privateKey.value;
-
-                    if (privateKey.encrypted) {
-                        pk = await ethUtils.decryptPrivateKey(privateKey, 'Please decrypt your private key in order to sign the transaction', 'Sign transaction');
-                    }
-
-                    ethUtils.signTx(txData, pk)
-                        .then((signedTx: EthTx) => cb(null, '0x'+signedTx.serialize().toString('hex')))
-                        .catch((e) => cb(e, null));
-                } catch (e) {
-                    cb(e, null);
-                }
-            })
-            .catch((e) => cb(e, null));
+            .signTx(txData)
+            .then((signedTx: EthTx) => cb(null, '0x'+signedTx.serialize().toString('hex')))
+            .catch(cb);
     };
 }
 
