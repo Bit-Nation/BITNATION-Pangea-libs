@@ -1,4 +1,5 @@
 > The schemata can be found in `src/database/schemata.js`. Each schema defines an flow type that represent it's value so that it can be better consumed by flow.
+> All types are realm types.
 
 ## ProfileSchema
 
