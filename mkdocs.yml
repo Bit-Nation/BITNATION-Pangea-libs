@@ -8,4 +8,5 @@ pages:
   - Schemata: schemata.md
   - Modules: modules.md
   - Interfaces: interfaces.md
+  - Specification: specification.md
 theme: readthedocs
