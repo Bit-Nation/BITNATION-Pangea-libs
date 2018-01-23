@@ -1,4 +1,4 @@
-## `src/database/db.js`
+## src/database/db
 
 > The database is an proxy between realm and the pangea libraries. It's responsible for the query / write actions and schema registration.
 
@@ -12,7 +12,7 @@ const db = dbFactory('./path/to/my/db');
 
 ```
 
-## `src/ethereum/nation.js`
+## src/ethereum/nation
 
 > Used to interact with nations (create, join, leave etc)
 
@@ -25,7 +25,7 @@ const nation = nationFactory(db, txQueue, web3, eventEmitter, nationContract);
 
 ```
 
-## `src/ethereum/PangeaProvider.js`
+## src/ethereum/PangeaProvider
 
 > Customized web3 provider.
 > `getAccounts` will return an array of account addresses fetched from the local storage.
@@ -40,7 +40,7 @@ const web3 = new Web3(new PangeProvider(ethUtils, rpcUrl))
 
 ```
 
-## `src/ethereum/utils.js`
+## src/ethereum/utils
 
 > A list of utils related to ethereum. Have a look at the EthUtilsInterface.
 
@@ -55,7 +55,7 @@ const ethUtils = ethUtilsFactory(secureStorage, eventEmitter, osDependencies);
 
 ```
 
-## `src/ethereum/wallet.js`
+## src/ethereum/wallet
 
 > Interaction with the wallet.
 
@@ -70,7 +70,7 @@ const wallet = walletFactory(ethUtils, web3, db);
 
 ```
 
-## `src/ethereum/web3.js`
+## src/ethereum/web3
 
 > Creates and Web3 instance.
 
