@@ -1,0 +1,7 @@
+site_name: Bitnation Pangea Lib's
+site_url: https://bitnation.co
+repo_url: https://github.com/Bit-Nation/BITNATION-Pangea-libs
+site_dir: docs_build
+pages:
+  - Home: index.md
+theme: readthedocs
