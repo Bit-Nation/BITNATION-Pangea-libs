@@ -5,4 +5,5 @@ site_dir: docs_build
 pages:
   - Home: index.md
   - Events: events.md
+  - Schemata: schemata.md
 theme: readthedocs
