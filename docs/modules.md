@@ -1,10 +1,8 @@
 ## src/database/db
 
-> The database is an proxy between realm and the pangea libraries. It's responsible for the query / write actions and schema registration.
+> Creates an object of DBInterface
 
-**Create an instance of database**
 ```js
-//dbFactory returns an instance of DBInterface
 import dbFactory from './src/database/db'
 
 //Will be an object that satisfies the [DBInterface]()
@@ -14,10 +12,9 @@ const db = dbFactory('./path/to/my/db');
 
 ## src/ethereum/nation
 
-> Used to interact with nations (create, join, leave etc)
+> Creates an object of NationInterface
 
 ```js
-//nationFactory returns an instance of NationInterface
 import nationFactory from './src/ethereum/nation'
 
 //Will be an object that satisfies the [NationInterface]()
@@ -27,7 +24,7 @@ const nation = nationFactory(db, txQueue, web3, eventEmitter, nationContract);
 
 ## src/ethereum/PangeaProvider
 
-> Customized web3 provider.
+> Creates an web3 provider
 > `getAccounts` will return an array of account addresses fetched from the local storage.
 > `signTx` will emit an event (more in the events section) which the client need's to react to.
 
@@ -42,10 +39,9 @@ const web3 = new Web3(new PangeProvider(ethUtils, rpcUrl))
 
 ## src/ethereum/utils
 
-> A list of utils related to ethereum. Have a look at the EthUtilsInterface.
+> Creates an object of EthUtilsInterface
 
 ```js
-//ethUtilsFactory returns and instance of EthUtilsInterface
 import ethUtilsFactory from './src/ethereum/utils'
 
 //secureStorage is an object of SecureStorageInterface
@@ -57,10 +53,9 @@ const ethUtils = ethUtilsFactory(secureStorage, eventEmitter, osDependencies);
 
 ## src/ethereum/wallet
 
-> Interaction with the wallet.
+> creates an object of WalletInterface
 
 ```js
-//walletFactory creates an instance of WalletInterface
 import walletFactory from './src/ethereum/wallet'
 
 //ethUtils an object of EthUtilsInterface
@@ -82,5 +77,19 @@ import web3Factory from './src/ethereum/web3'
 //ethutils is an instance of EthUtilsInterface
 //networkAccess is a bool. true if we have access to the www / false when not
 const web3Instance = web3Factory(ethNode, ethUtils, networkAccess)
+
+```
+
+## src/profile/profile
+
+> creates an object of the ProfileInterface.
+
+```js
+//
+import profileFactory from './src/profile/profile'
+
+//dbInstance is an object of DBInterface
+//ethUtils is an object of EthUtilsInterface
+const profile = profileFactory(dbInstance, ethUtils)
 
 ```
