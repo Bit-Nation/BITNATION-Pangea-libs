@@ -2,19 +2,19 @@
 
 ## ProfileSchema
 
-### Properties:
-- id (type: int) - used by realm
-- name (type: string) - is the username of the profile. Later this will be searchable
-- location (type: string) - location of the user (like Germany, or Colon)
-- latitude (type: string)
-- longitude (type: string)
-- description (type: string) - short description of the user
-- image (type: string) - base64 encoded image profile image of the user
-- version (type: string) - specifies the version of the profile
+**Properties:**
+- `id` (type: `int`) - used by realm
+- `name` (type: `string`) - is the username of the profile. Later this will be searchable
+- `location` (type: `string`) - location of the user (like Germany, or Colon)
+- `latitude` (type: `string`)
+- `longitude` (type: `string`)
+- `description` (type: `string`) - short description of the user
+- `image` (type: `string`) - base64 encoded image profile image of the user
+- `version` (type: `string`) - specifies the version of the profile
 
 ## AccountBalanceSchema
 
-### Properties:
+**Properties:**
 - id (type: string) - this is the ETH address + `_ETH` as a prefix. E.g: `0xaf137676a815a09302a348e339cf9d85d2c91706_ETH`
 - address (type: string) - e.g. ethereum address
 - amount (type: string) - amount in the smallest unit
@@ -23,7 +23,7 @@
 
 ## MessageJobSchema
 
-### Properties:
+**Properties:**
 - id (type: int) - internal id
 - heading (type: string)
 - text (type: string) - the main message
@@ -35,7 +35,7 @@
 
 ## NationSchema
 
-### Properties:
+**Properties:**
 - id (type: int) - internal id for the application
 - idInSmartContract (type: int) - id in nation smart contract
 - txHash (type: string) - the transaction hash of the transaction where the nation was created
