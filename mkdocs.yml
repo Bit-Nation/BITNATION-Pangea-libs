@@ -6,4 +6,5 @@ pages:
   - Home: index.md
   - Events: events.md
   - Schemata: schemata.md
+  - Modules: modules.md
 theme: readthedocs
