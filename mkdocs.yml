@@ -4,4 +4,5 @@ repo_url: https://github.com/Bit-Nation/BITNATION-Pangea-libs
 site_dir: docs_build
 pages:
   - Home: index.md
+  - Events: events.md
 theme: readthedocs
