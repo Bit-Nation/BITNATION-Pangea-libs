@@ -32,8 +32,6 @@
     "coveralls": "^3.0.0",
     "dirty": "^1.1.0",
     "documentation": "^5.3.5",
-    "esdoc": "^1.0.4",
-    "esdoc-standard-plugin": "^1.0.0",
     "eslint": "^4.15.0",
     "eslint-config-google": "^0.9.1",
     "eslint-plugin-flowtype": "^2.41.0",
