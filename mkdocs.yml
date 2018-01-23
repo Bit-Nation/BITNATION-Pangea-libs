@@ -7,4 +7,5 @@ pages:
   - Events: events.md
   - Schemata: schemata.md
   - Modules: modules.md
+  - Interfaces: interfaces.md
 theme: readthedocs
