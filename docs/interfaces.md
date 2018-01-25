@@ -14,6 +14,7 @@
 > Contain's utils for address and private key normalization, transaction signing, private key creation, private key storage and so on.
 
 **Available methods:**
+
 - `createPrivateKey` Return's an Promise that resolves in an private ethereum key (32 bytes in hex encoded)
 - `savePrivateKey` Save private key
 - `allKeyPairs` Resolves in an list of ethereum keypairs map
@@ -29,6 +30,9 @@
 
 ## NationInterface(`src/ethereum/nation.js`)
 > Use this to interact with everything nation related like creation, joining, leaving, indexing and so on.
+
+**Available methods:**
+
 - `create` will create an nation locally AND submit the needed transaction to the blockchain. If the transaction submission failed the returned promise will be rejected.
 - `all` returns all index nations
 - `joinNation` join an nation
@@ -37,12 +41,18 @@
 
 ## WalletInterface(`src/ethereum/wallet.js`)
 > Use this to interact with your ethereum wallet.
+
+**Available methods:**
+
 - `ethSend` Will send ether from a to b
 - `ethBalance` Fetch your eth balance
 - `ethSync` Sync your ethereum accounts.
 
 ## ProfileInterface(`src/ethereum/profile.js`)
 > Use this to interact with your profile.
+
+**Available methods:**
+
 - `hasProfile` Check if an profile is present
 - `setProfile` Set / create an profile
 - `getProfile` Fetch your profile
