@@ -5,14 +5,45 @@
 > Use this to query and write the database.
 > It's an abstraction layer for [realm](realm.io/docs/javascript/latest/)
 
+**Available methods:**
+
+- `query` query the database
+- `write` write to the database.
+
 ## EthUtilsInterface(`src/ethereum/utils.js`)
 > Contain's utils for address and private key normalization, transaction signing, private key creation, private key storage and so on.
 
+**Available methods:**
+- `createPrivateKey` Return's an Promise that resolves in an private ethereum key (32 bytes in hex encoded)
+- `savePrivateKey` Save private key
+- `allKeyPairs` Resolves in an list of ethereum keypairs map
+- `getPrivateKey` Get an private key by it's address
+- `deletePrivateKey`
+- `decryptPrivateKey`
+- `signTx` Sign an ethereum transaction
+- `normalizeAddress` normalized an etheruem address (e.g. add the hex prefix and so on)
+- `normalizePrivateKey` normalize an ethereum private key (will throw when the key is invalid)
+- `privateKeyToMnemonic` convert's an ethereum private key to it's mnemonic phrase.
+- `mnemonicToPrivateKey` opposite of `privateKeyToMnemonic`
+- `mnemonicValid` check if the mnemonic is valid
+
 ## NationInterface(`src/ethereum/nation.js`)
 > Use this to interact with everything nation related like creation, joining, leaving, indexing and so on.
+- `create` will create an nation locally AND submit the needed transaction to the blockchain. If the transaction submission failed the returned promise will be rejected.
+- `all` returns all index nations
+- `joinNation` join an nation
+- `leaveNation` leave an nation
+- `index` use this to index all nation's from the blockchain. Just call it once a while to fetch nation's created by other people.
 
 ## WalletInterface(`src/ethereum/wallet.js`)
 > Use this to interact with your ethereum wallet.
+- `ethSend` Will send ether from a to b
+- `ethBalance` Fetch your eth balance
+- `ethSync` Sync your ethereum accounts.
 
 ## ProfileInterface(`src/ethereum/profile.js`)
 > Use this to interact with your profile.
+- `hasProfile` Check if an profile is present
+- `setProfile` Set / create an profile
+- `getProfile` Fetch your profile
+- `getPublicProfile` Fetch your public profile (it contain's some additional values)
