@@ -47,12 +47,13 @@ export interface NationInterface {
     all() : Promise<NationType>,
     index() : Promise<void>,
     joinNation(id: number) : Promise<void>,
-    leaveNation(id: number) : Promise<void>
+    leaveNation(id: number) : Promise<void>,
+    saveDraft(nation: NationInputType) : Promise<string>
 }
 
 /**
  *
- * @param db
+ * @param {DBInterface} db
  * @param {TransactionQueueInterface} txQueue
  * @param {Web3} web3
  * @param {EventEmitter} ee
@@ -61,6 +62,28 @@ export interface NationInterface {
  */
 export default function(db: DBInterface, txQueue: TransactionQueueInterface, web3: Web3, ee: EventEmitter, nationContract: {...any}) {
     const impl:NationInterface = {
+        saveDraft: (nation: NationInputType): Promise<string> => new Promise((res, rej) => {
+            db
+                .write((realm) => {
+                    realm.create('Nation', {
+                        id: realm.objects('Nation').length +1,
+                        created: false,
+                        nationName: nation.nationName,
+                        nationDescription: nation.nationDescription,
+                        exists: nation.exists,
+                        virtualNation: nation.virtualNation,
+                        nationCode: nation.nationCode,
+                        lawEnforcementMechanism: nation.lawEnforcementMechanism,
+                        profit: nation.profit,
+                        nonCitizenUse: nation.nonCitizenUse,
+                        diplomaticRecognition: nation.diplomaticRecognition,
+                        decisionMakingProcess: nation.decisionMakingProcess,
+                        governanceService: nation.governanceService,
+                    });
+                    res('nation.draft.saved_successfully');
+                })
+                .catch((_) => rej('nation.draft.saved_failed'));
+        }),
         create: (nationData: NationInputType): Promise<NationType> => new Promise((res, rej) => {
             db
                 .write(function(realm) {
@@ -105,7 +128,7 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
         }),
         all: () => db.query((realm) => realm.objects('Nation')),
         index: () => new Promise((res, rej) => {
-            const nationCreatedEvent = nationContract.NationCreated({}, {fromBlock: 0, toBlock: 'latest'});
+            const nationCreatedEvent = nationContract.NationCreated({}, {fromBlock: 0, toBlock: 'latest'}); // eslint-disable-line
 
             nationCreatedEvent.get(function(err, logs) {
                 if (err) {

@@ -1,7 +1,6 @@
 import nationsFactory from './nation';
 import dbFactory from '../database/db';
 import {NATION_CREATE} from '../events';
-import {NATION_CONTRACT_ABI} from '../constants';
 const EventEmitter = require('eventemitter3');
 const Web3 = require('web3');
 
@@ -209,14 +208,12 @@ describe('nation', () => {
     });
 
     describe('joinNation', () => {
-
         test('success', (done) => {
-
             const nationContractMock = {
-                joinNation: jest.fn(function (nationId, cb) {
+                joinNation: jest.fn(function(nationId, cb) {
                     expect(nationId).toEqual(4);
                     cb();
-                })
+                }),
             };
 
             const web3 = new Web3(new Web3.providers.HttpProvider('https://rinkeby.infura.io/d'));
@@ -226,22 +223,20 @@ describe('nation', () => {
 
             nations
                 .joinNation(4)
-                .then(_ => {
+                .then((_) => {
                     expect(_).toBeUndefined();
                     done();
                 })
-                .catch(done.fail)
-
+                .catch(done.fail);
         });
 
         test('fail', (done) => {
-
             const nationContractMock = {
-                joinNation: jest.fn(function (nationId, cb) {
+                joinNation: jest.fn(function(nationId, cb) {
                     expect(nationId).toEqual(4);
                     cb('i_am_a_error');
                     done();
-                })
+                }),
             };
 
             const web3 = new Web3(new Web3.providers.HttpProvider('https://rinkeby.infura.io/d'));
@@ -251,27 +246,23 @@ describe('nation', () => {
 
             nations
                 .joinNation(4)
-                .then(_ => {
+                .then((_) => {
                     done.fail('should be rejected');
                 })
-                .catch(error => {
+                .catch((error) => {
                     expect(error).toBe('i_am_a_error');
                     done();
-                })
-
-        })
-
+                });
+        });
     });
 
     describe('leaveNation', () => {
-
         test('success', (done) => {
-
             const nationContractMock = {
-                leaveNation: jest.fn(function (nationId, cb) {
+                leaveNation: jest.fn(function(nationId, cb) {
                     expect(nationId).toEqual(4);
                     cb();
-                })
+                }),
             };
 
             const web3 = new Web3(new Web3.providers.HttpProvider('https://rinkeby.infura.io/d'));
@@ -281,22 +272,20 @@ describe('nation', () => {
 
             nations
                 .leaveNation(4)
-                .then(_ => {
+                .then((_) => {
                     expect(_).toBeUndefined();
                     done();
                 })
-                .catch(done.fail)
-
+                .catch(done.fail);
         });
 
         test('fail', (done) => {
-
             const nationContractMock = {
-                leaveNation: jest.fn(function (nationId, cb) {
+                leaveNation: jest.fn(function(nationId, cb) {
                     expect(nationId).toEqual(4);
                     cb('i_am_a_error');
                     done();
-                })
+                }),
             };
 
             const web3 = new Web3(new Web3.providers.HttpProvider('https://rinkeby.infura.io/d'));
@@ -306,87 +295,130 @@ describe('nation', () => {
 
             nations
                 .leaveNation(4)
-                .then(_ => {
+                .then((_) => {
                     done.fail('should be rejected');
                 })
-                .catch(error => {
+                .catch((error) => {
                     expect(error).toBe('i_am_a_error');
                     done();
-                })
-
-        })
-
+                });
+        });
     });
 
     describe('index', () => {
-
         test('NationCreated event filter', (done) => {
-
             const nationContract = {
                 NationCreated: (filter, blockFilter) => {
-
                     expect(filter).toEqual({});
 
                     expect(blockFilter).toEqual({
                         fromBlock: 0,
-                        toBlock:  'latest'
+                        toBlock: 'latest',
                     });
 
 
                     return {
                         get: () => {
-
                             done();
-
-                        }
-                    }
-
-                }
+                        },
+                    };
+                },
             };
 
             const nations = nationsFactory(null, null, null, null, nationContract);
 
             nations
                 .index()
-                .then()
-
+                .then();
         });
 
         test('NationCreated event error handling', (done) => {
-
             const nationContract = {
                 NationCreated: (filter, blockFilter) => {
-
                     expect(filter).toEqual({});
 
                     expect(blockFilter).toEqual({
                         fromBlock: 0,
-                        toBlock:  'latest'
+                        toBlock: 'latest',
                     });
 
                     return {
                         get: (cb) => {
                             cb('i_am_an_error');
-                        }
-                    }
-
-                }
+                        },
+                    };
+                },
             };
 
             const nations = nationsFactory(null, null, null, null, nationContract);
 
             nations
                 .index()
-                .then(_ => done.fail('should be rejected'))
-                .catch(error => {
-
+                .then((_) => done.fail('should be rejected'))
+                .catch((error) => {
                     expect(error).toBe('i_am_an_error');
                     done();
+                });
+        });
+    });
+    describe('saveDraft', () => {
+        test('success', (done) => {
+            const db = dbFactory(randomPath());
 
+            const nations = nationsFactory(dbFactory(randomPath()), null, null, null, null);
+
+            const nationData = {
+                nationName: 'Bitnation',
+                nationDescription: 'We <3 cryptography',
+                exists: true,
+                virtualNation: false,
+                nationCode: 'Code civil',
+                lawEnforcementMechanism: 'xyz',
+                profit: true,
+                nonCitizenUse: false,
+                diplomaticRecognition: false,
+                decisionMakingProcess: 'dictatorship',
+                governanceService: 'Security',
+            };
+
+            db
+                .query((realm) => realm.objects('Nation').length)
+                .then((nationsLength) => {
+                    expect(nationsLength).toBe(0);
+                    return nations.saveDraft(nationData);
+                })
+                .then((response) => {
+                    expect(response).toBe('nation.draft.saved_successfully');
+
+                    done();
                 })
 
+                .catch(done.fail);
         });
 
-    })
+        test('fail', (done) => {
+            const db = dbFactory(randomPath());
 
+            const nations = nationsFactory(dbFactory(randomPath()), null, null, null, null);
+
+            const nationData = {};
+
+            db
+                .query((realm) => realm.objects('Nation').length)
+                .then((nationsLength) => {
+                    expect(nationsLength).toBe(0);
+
+                    return nations.saveDraft(nationData);
+                })
+                .then((response) => {
+                    done.fail('The promise should be rejected since it ');
+                })
+
+                .catch((response) => {
+                    expect(response).toBe('nation.draft.saved_failed');
+
+                    done();
+                });
+        });
+    });
 });
