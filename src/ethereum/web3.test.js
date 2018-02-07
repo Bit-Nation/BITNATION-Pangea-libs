@@ -1,6 +1,11 @@
 import web3Factory from './web3';
 
 describe('web3', () => {
+    const nodeMock = {
+        start: () => new Promise((res, rej) => res()),
+        url: 'https://mainnet.infura.io/bitnation',
+    };
+
     test('create web3 for offline usage with default address', (done) => {
         const ethUtilsMock = {
             allKeyPairs: () => new Promise((res, rej) => {
@@ -9,10 +14,6 @@ describe('web3', () => {
                 m.set('0x6589d76e6408e67c726903d5d777d18f03d184a1', {});
                 res(m);
             }),
-        };
-
-        const nodeMock = {
-            start: () => new Promise((res, rej) => res()),
         };
 
         web3Factory(nodeMock, ethUtilsMock, false)
@@ -30,10 +31,6 @@ describe('web3', () => {
     test('create web3 for offline usage without an address', (done) => {
         const ethUtilsMock = {
             allKeyPairs: () => new Promise((res, rej) => res(new Map())),
-        };
-
-        const nodeMock = {
-            start: () => new Promise((res, rej) => res()),
         };
 
         web3Factory(nodeMock, ethUtilsMock, false)
@@ -58,11 +55,6 @@ describe('web3', () => {
             }),
         };
 
-        const nodeMock = {
-            start: () => new Promise((res, rej) => res()),
-            url: 'http://',
-        };
-
         web3Factory(nodeMock, ethUtilsMock, true)
             .then(function(web3) {
                 // Should be first account from allKeyPairs method
@@ -78,11 +70,6 @@ describe('web3', () => {
     test('create web3 for offline usage without an address', (done) => {
         const ethUtilsMock = {
             allKeyPairs: () => new Promise((res, rej) => res(new Map())),
-        };
-
-        const nodeMock = {
-            start: () => new Promise((res, rej) => res()),
-            url: 'http://',
         };
 
         web3Factory(nodeMock, ethUtilsMock, true)

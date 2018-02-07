@@ -12,7 +12,10 @@
     "docs": "flow-remove-types ./src --out-dir docs_build && esdoc && rm -rf docs_build",
     "eslint:fix": "node_modules/.bin/eslint src/ --fix",
     "eslint:lint": "node_modules/.bin/eslint src/",
-    "build:js": "babel src --out-dir build"
+    "build:js": "babel src --out-dir build",
+    "test:watch": "nodemon --exec \"npm run test\"",
+    "test:inspect": "flow && node --inspect node_modules/.bin/jest",
+    "test:watch:inspect": "nodemon --exec \"npm run test:inspect\""
   },
   "keywords": [],
   "author": "",
@@ -23,20 +26,12 @@
     "eslint-config-google": "^0.9.1",
     "eslint-plugin-flowtype": "^2.41.0",
     "flow-remove-types": "^1.2.3",
-    "jest": "^21.2.1"
+    "jest": "^21.2.1",
+    "nodemon": "^1.14.12"
   },
   "dependencies": {
     "assert": "^1.4.1",
     "async": "^2.6.0",
-    "bip39": "^2.4.0",
-    "crypto-js": "^3.1.9-1",
-    "ethereumjs-tx": "^1.3.3",
-    "ethereumjs-util": "^5.1.2",
-    "eventemitter3": "^2.0.3",
-    "flow-bin": "^0.57.3",
-    "realm": "^2.0.2",
-    "web3": "git+https://github.com/ethereum/web3.js.git#0.19.0",
-    "web3-provider-engine": "^13.3.3",
     "babel-cli": "^6.26.0",
     "babel-core": "^6.26.0",
     "babel-eslint": "^8.2.1",
@@ -46,7 +41,16 @@
     "babel-plugin-transform-flow-strip-types": "^6.22.0",
     "babel-plugin-transform-runtime": "^6.23.0",
     "babel-preset-flow-node": "^1.0.2",
-    "bignumber.js": "^5.0.0"
+    "bignumber.js": "^5.0.0",
+    "bip39": "^2.4.0",
+    "crypto-js": "^3.1.9-1",
+    "ethereumjs-tx": "^1.3.3",
+    "ethereumjs-util": "^5.1.2",
+    "eventemitter3": "^2.0.3",
+    "flow-bin": "^0.57.3",
+    "realm": "^2.1.1",
+    "web3": "git+https://github.com/ethereum/web3.js.git#0.19.0",
+    "web3-provider-engine": "^13.3.3"
   },
   "jest": {
     "transform": {
