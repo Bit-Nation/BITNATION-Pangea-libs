@@ -12,7 +12,10 @@
     "docs": "flow-remove-types ./src --out-dir docs_build && esdoc && rm -rf docs_build",
     "eslint:fix": "node_modules/.bin/eslint src/ --fix",
     "eslint:lint": "node_modules/.bin/eslint src/",
-    "build:js": "babel src --out-dir build"
+    "build:js": "babel src --out-dir build",
+    "test:watch": "nodemon --exec \"npm run test\"",
+    "test:inspect": "flow && node --inspect node_modules/.bin/jest",
+    "test:watch:inspect": "nodemon --exec \"npm run test:inspect\""
   },
   "keywords": [],
   "author": "",
@@ -23,7 +26,8 @@
     "eslint-config-google": "^0.9.1",
     "eslint-plugin-flowtype": "^2.41.0",
     "flow-remove-types": "^1.2.3",
-    "jest": "^21.2.1"
+    "jest": "^21.2.1",
+    "nodemon": "^1.14.12"
   },
   "dependencies": {
     "assert": "^1.4.1",
