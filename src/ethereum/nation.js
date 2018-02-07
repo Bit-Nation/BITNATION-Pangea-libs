@@ -50,7 +50,8 @@ export interface NationInterface {
     saveDraft(nation: NationInputType) : Promise<{transKey: string, nation: NationType}>,
     updateDraft(nationId: number, nation: NationInputType) : Promise<{transKey: string, nation: NationType}>,
     submitDraft(nationId: number) : Promise<{transKey: string, nation: NationType}>,
-    saveAndSubmit(nation: NationInputType) : Promise<{transKey: string, nation: NationType}>
+    saveAndSubmit(nation: NationInputType) : Promise<{transKey: string, nation: NationType}>,
+    deleteDraft(nationId: number) : Promise<{transKey: string}>
 }
 
 /**
@@ -100,7 +101,10 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                             transKey: 'nation.draft.updated_successfully',
                             nation: nation,
                         }))
-                        .catch((_) => rej('system_error.db_write_failed'));
+                        .catch((error) => {
+                            // @todo log error
+                            rej('system_error.db_write_failed');
+                        });
                 });
         }),
         saveDraft: (nationData: NationInputType): Promise<{transKey: string, nation: NationType}> => new Promise((res, rej) => {
@@ -330,6 +334,22 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                 .then((response: {transKey: string, nation: NationType}) => impl.submitDraft(response.nation.id))
                 .then(res)
                 .catch(rej);
+        }),
+        deleteDraft: (nationId: number): Promise<{transKey: string}> => new Promise((res, rej) => {
+            db
+                .query((realm) => realm.objects('Nation').filtered(`id = "${nationId}"`))
+                .then((nations: Array<NationType>) => {
+                    if (nations.length <= 0) {
+                        return rej({transKey: 'system_error.nation.does_not_exist'});
+                    }
+                    const nation:NationType = nations[0];
+                    if (nation.idInSmartContract >= 0) {
+                        return rej({transKey: 'system_error.nation.already_submitted'});
+                    }
+                    return db.write((realm) => realm.delete(nation));
+                })
+                .then((_) => res({transKey: 'nation.draft.deleted'}))
+                .catch((_) => res({transKey: 'system_error.db_write_failed'}));
         }),
     };
 

@@ -497,4 +497,37 @@ describe('nation', () => {
                 .catch(done.fail);
         });
     });
+    describe('deleteDraft', () => {
+        test('success', (done) => {
+            const db = dbFactory(randomPath());
+
+            const nationData = {
+                nationName: 'Bitnation',
+                nationDescription: 'We <3 cryptography',
+                exists: true,
+                virtualNation: false,
+                nationCode: 'Code civil',
+                lawEnforcementMechanism: 'xyz',
+                profit: true,
+                nonCitizenUse: false,
+                diplomaticRecognition: false,
+                decisionMakingProcess: 'dictatorship',
+                governanceService: 'Security',
+            };
+
+            const nationsService = nationsFactory(db, null, null, null, null);
+
+            nationsService
+                .saveDraft(nationData)
+                .then((response:{transKey: string, nation: NationType}) => nationsService.deleteDraft(response.nation.id))
+                .then((response:{transKey: string}) => {
+                    expect(response.transKey).toBe('nation.draft.deleted');
+                    return db.query((realm) => realm.objects('Nation'));
+                })
+                .then((nations) => {
+                    expect(nations.length).toBe(0);
+                    done();
+                });
+        });
+    });
 });
