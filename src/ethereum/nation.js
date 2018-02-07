@@ -49,7 +49,8 @@ export interface NationInterface {
     leaveNation(id: number) : Promise<void>,
     saveDraft(nation: NationInputType) : Promise<{transKey: string, nation: NationType}>,
     updateDraft(nationId: number, nation: NationInputType) : Promise<{transKey: string, nation: NationType}>,
-    submitDraft(nationId: number) : Promise<{transKey: string, nation: NationType}>
+    submitDraft(nationId: number) : Promise<{transKey: string, nation: NationType}>,
+    saveAndSubmit(nation: NationInputType) : Promise<{transKey: string, nation: NationType}>
 }
 
 /**
@@ -265,7 +266,7 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
         }),
         submitDraft: (nationId: number): Promise<{transKey: string, nation: NationType}> => new Promise((res, rej) => {
             db
-                .query((realm) => realm.objects(`id = "${nationId}"`))
+                .query((realm) => realm.objects('Nation').filtered(`id = "${nationId}"`))
                 .then((nations) => {
                     if (nations.length <= 0) {
                         return rej('system_error.nation.does_not_exist');
@@ -297,18 +298,38 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                         JSON.stringify(nationData),
                         function(err, txHash) {
                             if (err) {
-                                return rej(err);
+                                // @todo log error
+                                return rej({
+                                    transKey: err,
+                                });
                             }
 
                             // Attach transaction hash to nation
                             db
-                                .write((realm) => nation.txHash = txHash)
-                                .then((_) => res(nation))
-                                .catch(rej);
+                                .write((_) => nation.txHash = txHash)
+                                .then((_) => res({
+                                    transKey: 'nation.submit_success',
+                                    nation: nation,
+                                }))
+                                .catch((_) => rej({
+                                    transKey: 'system_error.db_write_failed',
+                                    nation: nation,
+                                }));
                         }
                     );
                 })
-                .catch(() => rej('system_error.db_query_failed'));
+                .catch((error) => {
+                    console.log(error);
+                    // @todo report error in future
+                    rej('system_error.db_query_failed');
+                });
+        }),
+        saveAndSubmit: (nationData: NationInputType): Promise<{transKey: string, nation: NationType}> => new Promise((res, rej) => {
+            impl
+                .saveDraft(nationData)
+                .then((response: {transKey: string, nation: NationType}) => impl.submitDraft(response.nation.id))
+                .then(res)
+                .catch(rej);
         }),
     };
 

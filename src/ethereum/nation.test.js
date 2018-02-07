@@ -418,20 +418,79 @@ describe('nation', () => {
 
             // Mock the smart contract method
             const nationContractMock = {
-                createNation: jest.fn(function(data) {
-                    expect(JSON.parse(data)).toBe(nationData);
+                createNation: jest.fn(function(data, cb) {
+                    expect(JSON.parse(data)).toEqual(nationData);
+
+                    cb(null, 'i_am_a_tx_hash');
                 }),
             };
 
             const nationService = nationsFactory(db, null, null, null, nationContractMock);
 
-
             nationService
                 .saveDraft(nationData)
-                .then((nation:NationType) => nationService.submitDraft(nation.id))
+                .then((response: {transKey: string, nation:NationType}) => nationService.submitDraft(response.nation.id))
                 .then((result) => {
-                    expect(result.transKey).toBe('bla');
-                    expect(nationContractMock).toHaveBeenCalledTimes(1);
+                    expect(result.transKey).toBe('nation.submit_success');
+                    expect(result.nation.txHash).toBe('i_am_a_tx_hash');
+                    expect(nationContractMock.createNation).toHaveBeenCalledTimes(1);
+
+                    done();
+                })
+                .catch(done.fail);
+        });
+    });
+    describe('saveAndSubmit', () => {
+        test('success', (done) => {
+            const db = dbFactory(randomPath());
+
+            const nationContractMock = {
+                createNation: jest.fn((data, cb) => {
+                    cb(null, 'i_am_the_tx_hash');
+                }),
+            };
+
+            const nations = nationsFactory(db, null, null, null, nationContractMock);
+
+            const nationData = {
+                nationName: 'Bitnation',
+                nationDescription: 'We <3 cryptography',
+                exists: true,
+                virtualNation: false,
+                nationCode: 'Code civil',
+                lawEnforcementMechanism: 'xyz',
+                profit: true,
+                nonCitizenUse: false,
+                diplomaticRecognition: false,
+                decisionMakingProcess: 'dictatorship',
+                governanceService: 'Security',
+            };
+
+            nations
+                .saveAndSubmit(nationData)
+                // The result should be the one returned form
+                .then((response: {transKey: string, nation:NationType}) => {
+                    expect(nationContractMock.createNation).toHaveBeenCalledTimes(1);
+                    expect(response.transKey).toBe('nation.submit_success');
+                    expect(JSON.parse(JSON.stringify(response.nation))).toEqual({
+                        nationName: 'Bitnation',
+                        nationDescription: 'We <3 cryptography',
+                        exists: true,
+                        virtualNation: false,
+                        nationCode: 'Code civil',
+                        lawEnforcementMechanism: 'xyz',
+                        profit: true,
+                        nonCitizenUse: false,
+                        diplomaticRecognition: false,
+                        decisionMakingProcess: 'dictatorship',
+                        governanceService: 'Security',
+                        created: false,
+                        citizens: 0,
+                        id: 1,
+                        idInSmartContract: -1,
+                        joined: false,
+                        txHash: 'i_am_the_tx_hash',
+                    });
 
                     done();
                 })
