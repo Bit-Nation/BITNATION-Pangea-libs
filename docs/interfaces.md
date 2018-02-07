@@ -61,3 +61,9 @@
 - `setProfile` Set / create an profile
 - `getProfile` Fetch your profile
 - `getPublicProfile` Fetch your public profile (it contain's some additional values)
+
+## MessagingQueueInterface (`src/queue/messaging.js`)
+
+- `addJob` Add's an job to the messaging queue.
+> Add job expect's an instance of `Msg`.
+- `fetchMessages` Fetch the last `x` job's form the queue.

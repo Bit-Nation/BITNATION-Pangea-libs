@@ -92,8 +92,10 @@ export const AccountBalanceSchema = {
 export type MessageJobType = {
     id: number,
     heading: string,
-    text: string,
+    params: string,
     version: number,
+    display: boolean,
+    interpret: boolean,
     created_at: Date
 }
 
@@ -102,8 +104,14 @@ export const MessageJobSchema = {
     primaryKey: 'id',
     properties: {
         id: 'int',
-        heading: 'string',
-        text: 'string',
+        heading: {
+            type: 'string',
+            optional: true,
+        },
+        interpret: 'bool',
+        params: 'string',
+        display: 'bool',
+        msg: 'string',
         version: 'int',
         created_at: 'date',
     },

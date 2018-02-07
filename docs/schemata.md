@@ -29,10 +29,14 @@ __Properties:__
 __Properties:__
 
 - `id` (type: `int`) - internal id
-- `heading` (type: `string`)
-- `text` (type: `string`) - the main message
+- `heading` (type: `string`, optional: `true`) - the heading. This is only needed when the message is displayed in an alert
 - `version` (type: `int`) - version of the type
-- `version` (type: `Date`)
+- `interpret` (type: `bool`) - msg / heading can be an key like `nation.created`. You might convert that key to an meaningful text. `interpret` basically mean's if you should convert the value or not.
+- `params` (type: `string`) - JSON object as string that hold's the parameters
+- `display` (type: `bool`) - Should the message be displayed in an Alert?
+- `msg` (type: `bool`) - The message
+- `version` (type: `int`) - The version of this job
+- `created_at` (type: `Date`) - Moment when persisted to the database
 
 ## TransactionJobSchema
 > It's not sure if we will continue using the transaction job in the future. That's the reason why we will not document it here.
