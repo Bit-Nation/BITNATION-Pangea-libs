@@ -10,7 +10,7 @@ import {MESSAGING_QUEUE_JOB_ADDED} from './../events';
  */
 export class Msg {
     _msg: string;
-    _params: Array<mixed>;
+    _params: {...mixed};
     _interpret: boolean;
     _heading: string | null;
     _display: boolean;
@@ -20,11 +20,11 @@ export class Msg {
      * @param {string} params
      * @param {string} interpret
      */
-    constructor(msg: string, params: Array<mixed>, interpret: boolean) {
+    constructor(msg: string, params: {...mixed}, interpret: boolean) {
         this._msg = msg;
-        this._params = params || [];
+        this._params = params || {};
         this._interpret = true;
-        if(interpret === false){
+        if (interpret === false) {
             this._interpret = false;
         }
     }
@@ -59,7 +59,7 @@ export class Msg {
  * @property {function()} messages fetch all message job's
  */
 export interface MessagingQueueInterface {
-    addJob(heading: string, text: string) : Promise<void>,
+    addJob(msg: Msg) : Promise<MessageJobType>,
     removeJob(id: number) : Promise<void>,
     messages() : Promise<Array<MessageJobType>>
 }
@@ -72,29 +72,23 @@ export interface MessagingQueueInterface {
  */
 export default function(eventEmitter: EventEmitter, db: DBInterface): MessagingQueueInterface {
     const impl:MessagingQueueInterface = {
-        addJob: (heading: string, text: string) => new Promise((res, rej) => {
+        addJob: (msg: Msg): Promise<MessageJobType> => new Promise((res, rej) => {
             // Writes job to database
             const writeAction = (realm) => {
-                const numberOfJobs = realm.objects('MessageJob').length;
+                const dataSet = msg.toObj();
+                dataSet.id = realm.objects('MessageJob').length + 1;
+                dataSet.created_at = new Date();
+                dataSet.version = 1;
 
-                const job:MessageJobType = {
-                    id: numberOfJobs +1,
-                    heading: heading,
-                    text: text,
-                    version: 1,
-                    created_at: new Date(),
-                };
-
-                realm.create('MessageJob', job);
+                return realm.create('MessageJob', dataSet);
             };
 
             db
                 // Write to db
                 .write(writeAction)
-                .then((_) => {
-                    eventEmitter.emit(MESSAGING_QUEUE_JOB_ADDED);
-
-                    res();
+                .then((messageJob: MessageJobType) => {
+                    eventEmitter.emit(MESSAGING_QUEUE_JOB_ADDED, messageJob);
+                    res(messageJob);
                 })
                 .catch(rej);
         }),
