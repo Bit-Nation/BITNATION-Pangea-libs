@@ -33,11 +33,15 @@
 
 **Available methods:**
 
-- `create` will create an nation locally AND submit the needed transaction to the blockchain. If the transaction submission failed the returned promise will be rejected.
 - `all` returns all index nations
 - `joinNation` join an nation
 - `leaveNation` leave an nation
 - `index` use this to index all nation's from the blockchain. Just call it once a while to fetch nation's created by other people.
+- `saveDraft` Save a draft and return's an translation key + nation dataset
+- `updateDraft` Update a draft and return's transactio key + nation dataset. This can only be called when the nation was not submitted to the blockchain.
+- `submitDraft` Submit draft to the blockchain.
+- `saveAndSubmit` Save and submit and nation dataset.
+- `deleteDraft` Delete and draft.
 
 ## WalletInterface(`src/ethereum/wallet.js`)
 > Use this to interact with your ethereum wallet.

@@ -133,7 +133,7 @@ export default function walletFactory(ethUtils: EthUtilsInterface, web3: Web3, d
                             amount: web3.fromWei(balance.toString(10), 'ether'),
                         }, true);
                     })
-                    .then(_ => res())
+                    .then((_) => res())
                     .catch(rej);
             });
         }),
