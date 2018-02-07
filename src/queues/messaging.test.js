@@ -1,6 +1,5 @@
 import dbFactory from '../database/db';
-import messagingQueueFactory from './messaging';
-import type {DBInterface} from '../database/db';
+import messagingQueueFactory, {Msg} from './messaging';
 import {MESSAGING_QUEUE_JOB_ADDED} from '../events';
 const EventEmitter = require('eventemitter3');
 
@@ -9,6 +8,46 @@ function createDbPath() {
 }
 
 describe('messaging', () => {
+    describe('Msg - class', () => {
+        test('default interpreted message', () => {
+            const msg = new Msg('hi', ['A', 3]);
+
+            expect(msg.toObj()).toEqual({
+                msg: 'hi',
+                params: JSON.stringify(['A', 3]),
+                interpret: true,
+                display: false,
+                heading: null,
+            });
+        });
+
+        test('msg that is not interpreted', () => {
+            const msg = new Msg('hi', [], false);
+
+            expect(msg.toObj()).toEqual({
+                msg: 'hi',
+                params: JSON.stringify([]),
+                interpret: false,
+                display: false,
+                heading: null,
+            });
+        });
+
+        test(`Set message that need's to be displayed`, () => {
+            const msg = new Msg('hi', ['A', 3], false);
+
+            msg.display('I am a heading');
+
+            expect(msg.toObj()).toEqual({
+                msg: 'hi',
+                params: JSON.stringify(['A', 3]),
+                interpret: false,
+                display: true,
+                heading: 'I am a heading',
+            });
+        });
+    });
+
     describe('addJob', () => {
         test('emit event', (done) => {
             const db = {
