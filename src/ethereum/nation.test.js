@@ -365,7 +365,7 @@ describe('nation', () => {
         test('success', (done) => {
             const db = dbFactory(randomPath());
 
-            const nations = nationsFactory(dbFactory(randomPath()), null, null, null, null);
+            const nations = nationsFactory(db, null, null, null, null);
 
             const nationData = {
                 nationName: 'Bitnation',
@@ -399,7 +399,7 @@ describe('nation', () => {
         test('fail', (done) => {
             const db = dbFactory(randomPath());
 
-            const nations = nationsFactory(dbFactory(randomPath()), null, null, null, null);
+            const nations = nationsFactory(db, null, null, null, null);
 
             const nationData = {};
 
@@ -416,6 +416,121 @@ describe('nation', () => {
 
                 .catch((response) => {
                     expect(response).toBe('nation.draft.saved_failed');
+
+                    done();
+                });
+        });
+    });
+    describe('updateDraft', () => {
+        test('no nation found', (done) => {
+            const db = dbFactory(randomPath());
+
+            const nations = nationsFactory(db, null, null, null, null);
+
+            nations
+                .updateDraft(1, {})
+                .catch((e) => {
+                    expect(e).toBe('system_error.nation.does_not_exist');
+
+                    done();
+                });
+        });
+
+        test('updated successfully', (done) => {
+            const db = dbFactory(randomPath());
+
+            const nationService = nationsFactory(db, null, null, null, null);
+
+            const nationData = {
+                nationName: 'Bitnation',
+                nationDescription: 'We <3 cryptography',
+                exists: true,
+                virtualNation: false,
+                nationCode: 'Code civil',
+                lawEnforcementMechanism: 'xyz',
+                profit: true,
+                nonCitizenUse: false,
+                diplomaticRecognition: false,
+                decisionMakingProcess: 'dictatorship',
+                governanceService: 'Security',
+            };
+
+            nationService
+                // Persist nations
+                .saveDraft(nationData)
+                // Get all nations
+                .then((_) => db.query((realm) => realm.objects('Nation')))
+                .then((nations) => {
+                    // Assert that nation exist with passed in data
+                    // parse / stringify is done since the result is of class realm obj - I need a plain obj
+                    expect(JSON.parse(JSON.stringify(nations[0]))).toEqual({
+                        nationName: 'Bitnation',
+                        nationDescription: 'We <3 cryptography',
+                        exists: true,
+                        virtualNation: false,
+                        nationCode: 'Code civil',
+                        lawEnforcementMechanism: 'xyz',
+                        profit: true,
+                        nonCitizenUse: false,
+                        diplomaticRecognition: false,
+                        decisionMakingProcess: 'dictatorship',
+                        governanceService: 'Security',
+                        created: false,
+                        citizens: 0,
+                        id: 1,
+                        idInSmartContract: -1,
+                        joined: false,
+                        txHash: null,
+                    });
+
+                    nationData.nationName = 'updated nation name';
+
+                    // Updated nation data again
+                    return nationService.updateDraft(1, nationData);
+                })
+                // Assert updated transaction key
+                .then((response) => {
+                    expect(response).toBe('nation.draft.updated_successfully');
+
+                    // Fetch all the nation's
+                    return db.query((realm) => realm.objects('Nation'));
+                })
+                .then((nations) => {
+                    // Since we only perform an update - the amount of nation's should be 1
+                    expect(nations.length).toBe(1);
+                    expect(nations[0].nationName).toEqual('updated nation name');
+                    done();
+                })
+                .catch(done.fail);
+        });
+        test('nation update (db error)', (done) => {
+            const db = dbFactory(randomPath());
+
+            const nations = nationsFactory(db, null, null, null, null);
+
+            const nationData = {
+                nationName: 'Bitnation',
+                nationDescription: 'We <3 cryptography',
+                exists: true,
+                virtualNation: false,
+                nationCode: 'Code civil',
+                lawEnforcementMechanism: 'xyz',
+                profit: true,
+                nonCitizenUse: false,
+                diplomaticRecognition: false,
+                decisionMakingProcess: 'dictatorship',
+                governanceService: 'Security',
+            };
+
+            nations
+                // Create nation
+                .saveDraft(nationData)
+                .then((_) => nations.updateDraft(1, {
+                    // Update nationName with wrong value type - which result's in rejection
+                    nationName: 3,
+                }))
+                .catch((e) => {
+                    expect(e).toBe('system_error.db_write_failed');
 
                     done();
                 });

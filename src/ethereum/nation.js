@@ -48,7 +48,8 @@ export interface NationInterface {
     index() : Promise<void>,
     joinNation(id: number) : Promise<void>,
     leaveNation(id: number) : Promise<void>,
-    saveDraft(nation: NationInputType) : Promise<string>
+    saveDraft(nation: NationInputType) : Promise<string>,
+    updateDraft(nationId: number, nation: NationInputType) : Promise<string>
 }
 
 /**
@@ -62,6 +63,42 @@ export interface NationInterface {
  */
 export default function(db: DBInterface, txQueue: TransactionQueueInterface, web3: Web3, ee: EventEmitter, nationContract: {...any}) {
     const impl:NationInterface = {
+        updateDraft: (nationId: number, nation: NationInputType): Promise<string> => new Promise((res, rej) => {
+            db
+                .query((realm) => realm.objects('Nation').filtered(`id = "${nationId}"`))
+                .then((nations: Array<NationType>) => {
+                    if (nations.length <= 0) {
+                        return rej('system_error.nation.does_not_exist');
+                    }
+
+                    // it in smart contract is only >= 0 when the nation was written to the blockchain
+                    // @todo we really really need to check for if the nation was already submitted. But we need to have the tx queue thing.
+                    if (nations[0].idInSmartContract >= 0) {
+                        return rej('system_error.nation.already_submitted');
+                    }
+
+                    db
+                        .write((realm) => {
+                            realm.create('Nation', {
+                                id: nationId,
+                                created: false,
+                                nationName: nation.nationName,
+                                nationDescription: nation.nationDescription,
+                                exists: nation.exists,
+                                virtualNation: nation.virtualNation,
+                                nationCode: nation.nationCode,
+                                lawEnforcementMechanism: nation.lawEnforcementMechanism,
+                                profit: nation.profit,
+                                nonCitizenUse: nation.nonCitizenUse,
+                                diplomaticRecognition: nation.diplomaticRecognition,
+                                decisionMakingProcess: nation.decisionMakingProcess,
+                                governanceService: nation.governanceService,
+                            }, true);
+                        })
+                        .then((_) => res('nation.draft.updated_successfully'))
+                        .catch((_) => rej('system_error.db_write_failed'));
+                });
+        }),
         saveDraft: (nation: NationInputType): Promise<string> => new Promise((res, rej) => {
             db
                 .write((realm) => {
