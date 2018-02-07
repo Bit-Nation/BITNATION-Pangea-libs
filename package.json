@@ -12,7 +12,8 @@
     "docs": "flow-remove-types ./src --out-dir docs_build && esdoc && rm -rf docs_build",
     "eslint:fix": "node_modules/.bin/eslint src/ --fix",
     "eslint:lint": "node_modules/.bin/eslint src/",
-    "build:js": "babel src --out-dir build"
+    "build:js": "babel src --out-dir build",
+    "test:watch": "nodemon --exec \"npm run test\""
   },
   "keywords": [],
   "author": "",
