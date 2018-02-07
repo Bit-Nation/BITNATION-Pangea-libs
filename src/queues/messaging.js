@@ -59,7 +59,8 @@ export class Msg {
  * @property {function()} messages fetch all message job's
  */
 export interface MessagingQueueInterface {
-    addJob(msg: Msg) : Promise<MessageJobType>
+    addJob(msg: Msg) : Promise<MessageJobType>,
+    fetchMessages(count: number) : Promise<Array<MessageJobType>>
 }
 
 /**
@@ -87,6 +88,19 @@ export default function(eventEmitter: EventEmitter, db: DBInterface): MessagingQ
                 .then((messageJob: MessageJobType) => {
                     eventEmitter.emit(MESSAGING_QUEUE_JOB_ADDED, messageJob);
                     res(messageJob);
+                })
+                .catch(rej);
+        }),
+        fetchMessages: (count: number): Promise<Array<MessageJobType>> => new Promise((res, rej) => {
+            db
+                .query((realm) => {
+                    const messageJobs = realm.objects('MessageJob').length;
+                    return realm.objects('MessageJob').filtered(`id > "${messageJobs - count}"`);
+                })
+                .then((messageJobs) => {
+                    // @todo we are transforming realm object's to normal object's -
+                    // this is not that cool - we should have a method like toObject
+                    res(Object.keys(messageJobs).map((key) => JSON.parse(JSON.stringify(messageJobs[key]))));
                 })
                 .catch(rej);
         }),

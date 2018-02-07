@@ -90,4 +90,30 @@ describe('messaging', () => {
                 .catch(done.fail);
         });
     });
+    describe('fetchMessages', () => {
+        test('fetch limited amount messages', (done) => {
+            const db = dbFactory(createDbPath());
+
+            const queue = messagingQueueFactory(new EventEmitter(), db);
+
+            const msg = new Msg('i am the body');
+
+            queue
+                .addJob(msg)
+                .then((_) => queue.addJob(msg))
+                .then((_) => queue.addJob(msg))
+                .then((_) => queue.addJob(msg))
+                .then((_) => queue.addJob(msg))
+                .then((_) => queue.addJob(msg))
+                .then((_) => queue.addJob(msg))
+                .then((_) => queue.addJob(msg))
+                .then((_) => queue.fetchMessages(2))
+                .then((messages) => {
+                    expect(messages[0].id).toBe(7);
+                    expect(messages[1].id).toBe(8);
+
+                    done();
+                });
+        });
+    });
 });

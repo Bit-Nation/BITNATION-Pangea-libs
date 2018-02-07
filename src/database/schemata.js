@@ -106,7 +106,7 @@ export const MessageJobSchema = {
         id: 'int',
         heading: {
             type: 'string',
-            required: false,
+            optional: true,
         },
         interpret: 'bool',
         params: 'string',
