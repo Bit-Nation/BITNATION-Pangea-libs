@@ -59,9 +59,7 @@ export class Msg {
  * @property {function()} messages fetch all message job's
  */
 export interface MessagingQueueInterface {
-    addJob(msg: Msg) : Promise<MessageJobType>,
-    removeJob(id: number) : Promise<void>,
-    messages() : Promise<Array<MessageJobType>>
+    addJob(msg: Msg) : Promise<MessageJobType>
 }
 
 /**
@@ -92,19 +90,6 @@ export default function(eventEmitter: EventEmitter, db: DBInterface): MessagingQ
                 })
                 .catch(rej);
         }),
-        removeJob: (id: number) => new Promise((res, rej) => {
-            const writeAction = (realm) => {
-                const messageJob = realm.objects('MessageJob').filtered(`id = "${id}"`);
-
-                realm.delete(messageJob);
-            };
-
-            db
-                .write(writeAction)
-                .then((_) => res())
-                .catch(rej);
-        }),
-        messages: () => db.query((realm) => realm.objects('MessageJob')),
     };
 
     return impl;
