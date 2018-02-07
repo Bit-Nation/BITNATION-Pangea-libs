@@ -43,13 +43,13 @@ export type NationInputType = {
  * @property {function()} all fetch all nations
  */
 export interface NationInterface {
-    create(nationData: NationInputType) : Promise<NationType>,
     all() : Promise<NationType>,
     index() : Promise<void>,
     joinNation(id: number) : Promise<void>,
     leaveNation(id: number) : Promise<void>,
-    saveDraft(nation: NationInputType) : Promise<string>,
-    updateDraft(nationId: number, nation: NationInputType) : Promise<string>
+    saveDraft(nation: NationInputType) : Promise<{transKey: string, nation: NationType}>,
+    updateDraft(nationId: number, nation: NationInputType) : Promise<{transKey: string, nation: NationType}>,
+    submitDraft(nationId: number) : Promise<{transKey: string, nation: NationType}>
 }
 
 /**
@@ -63,7 +63,7 @@ export interface NationInterface {
  */
 export default function(db: DBInterface, txQueue: TransactionQueueInterface, web3: Web3, ee: EventEmitter, nationContract: {...any}) {
     const impl:NationInterface = {
-        updateDraft: (nationId: number, nation: NationInputType): Promise<string> => new Promise((res, rej) => {
+        updateDraft: (nationId: number, nation: NationInputType): Promise<{transKey: string, nation: NationType}> => new Promise((res, rej) => {
             db
                 .query((realm) => realm.objects('Nation').filtered(`id = "${nationId}"`))
                 .then((nations: Array<NationType>) => {
@@ -79,7 +79,7 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
 
                     db
                         .write((realm) => {
-                            realm.create('Nation', {
+                            return realm.create('Nation', {
                                 id: nationId,
                                 created: false,
                                 nationName: nation.nationName,
@@ -95,39 +95,17 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                                 governanceService: nation.governanceService,
                             }, true);
                         })
-                        .then((_) => res('nation.draft.updated_successfully'))
+                        .then((nation: NationType) => res({
+                            transKey: 'nation.draft.updated_successfully',
+                            nation: nation,
+                        }))
                         .catch((_) => rej('system_error.db_write_failed'));
                 });
         }),
-        saveDraft: (nation: NationInputType): Promise<string> => new Promise((res, rej) => {
+        saveDraft: (nationData: NationInputType): Promise<{transKey: string, nation: NationType}> => new Promise((res, rej) => {
             db
                 .write((realm) => {
-                    realm.create('Nation', {
-                        id: realm.objects('Nation').length +1,
-                        created: false,
-                        nationName: nation.nationName,
-                        nationDescription: nation.nationDescription,
-                        exists: nation.exists,
-                        virtualNation: nation.virtualNation,
-                        nationCode: nation.nationCode,
-                        lawEnforcementMechanism: nation.lawEnforcementMechanism,
-                        profit: nation.profit,
-                        nonCitizenUse: nation.nonCitizenUse,
-                        diplomaticRecognition: nation.diplomaticRecognition,
-                        decisionMakingProcess: nation.decisionMakingProcess,
-                        governanceService: nation.governanceService,
-                    });
-                    res('nation.draft.saved_successfully');
-                })
-                .catch((_) => rej('nation.draft.saved_failed'));
-        }),
-        create: (nationData: NationInputType): Promise<NationType> => new Promise((res, rej) => {
-            db
-                .write(function(realm) {
-                    // Persist nation data
-                    // created is set to false, since the nation is not written
-                    // to the blockchain
-                    const nation = realm.create('Nation', {
+                    return realm.create('Nation', {
                         id: realm.objects('Nation').length +1,
                         created: false,
                         nationName: nationData.nationName,
@@ -142,26 +120,17 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                         decisionMakingProcess: nationData.decisionMakingProcess,
                         governanceService: nationData.governanceService,
                     });
-
-                    return nation;
                 })
                 .then((nation: NationType) => {
-                    nationContract.createNation(
-                        JSON.stringify(nationData),
-                        function(err, txHash) {
-                            if (err) {
-                                return rej(err);
-                            }
-
-                            // Attach transaction hash to nation
-                            db
-                                .write((realm) => nation.txHash = txHash)
-                                .then((_) => res(nation))
-                                .catch(rej);
-                        }
-                    );
+                    res({
+                        transKey: 'nation.draft.saved_successfully',
+                        nation: nation,
+                    });
                 })
-                .catch(rej);
+                .catch((_) => rej({
+                    transKey: 'nation.draft.saved_failed',
+                    nation: nationData,
+                }));
         }),
         all: () => db.query((realm) => realm.objects('Nation')),
         index: () => new Promise((res, rej) => {
@@ -293,6 +262,53 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
 
                 return res();
             });
+        }),
+        submitDraft: (nationId: number): Promise<{transKey: string, nation: NationType}> => new Promise((res, rej) => {
+            db
+                .query((realm) => realm.objects(`id = "${nationId}"`))
+                .then((nations) => {
+                    if (nations.length <= 0) {
+                        return rej('system_error.nation.does_not_exist');
+                    }
+
+                    // it in smart contract is only >= 0 when the nation was written to the blockchain
+                    // @todo we really really need to check for if the nation was already submitted. But we need to have the tx queue thing.
+                    if (nations[0].idInSmartContract >= 0) {
+                        return rej('system_error.nation.already_submitted');
+                    }
+
+                    const nation = nations[0];
+
+                    const nationData:NationInputType = {
+                        nationName: nation.nationName,
+                        nationDescription: nation.nationDescription,
+                        exists: nation.exists,
+                        virtualNation: nation.virtualNation,
+                        nationCode: nation.nationCode,
+                        lawEnforcementMechanism: nation.lawEnforcementMechanism,
+                        profit: nation.profit,
+                        nonCitizenUse: nation.nonCitizenUse,
+                        diplomaticRecognition: nation.diplomaticRecognition,
+                        decisionMakingProcess: nation.decisionMakingProcess,
+                        governanceService: nation.governanceService,
+                    };
+
+                    nationContract.createNation(
+                        JSON.stringify(nationData),
+                        function(err, txHash) {
+                            if (err) {
+                                return rej(err);
+                            }
+
+                            // Attach transaction hash to nation
+                            db
+                                .write((realm) => nation.txHash = txHash)
+                                .then((_) => res(nation))
+                                .catch(rej);
+                        }
+                    );
+                })
+                .catch(() => rej('system_error.db_query_failed'));
         }),
     };
 
