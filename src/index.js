@@ -41,6 +41,7 @@ export default function pangeaLibsFactory(ss: SecureStorageInterface, dbPath: st
         },
         queue: {
             txQueue: txQueue,
+            msgQueue: msgQueue,
         },
         profile: {
             profile,
