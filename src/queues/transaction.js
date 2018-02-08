@@ -9,7 +9,8 @@ const EventEmitter = require('eventemitter3');
  * @property {function(job:TransactionJobInputType) : Promise<void>} addJob Add's an job to the queue and emit's the "transaction_queue:job:added" event
  */
 export interface TransactionQueueInterface {
-    jobFactory(txHash: string, type: string) : Promise<TransactionJobType>
+    jobFactory(txHash: string, type: string) : Promise<TransactionJobType>,
+    saveJob(job: TransactionJobType) : Promise<{transKey: string}>
 }
 
 /**
@@ -53,7 +54,7 @@ export const TX_JOB_STATUS_FAILED = 400;
  * @return {TransactionQueueInterface}
  */
 export default function(db: DBInterface, ee: EventEmitter): TransactionQueueInterface {
-    const impl = {
+    const impl:TransactionQueueInterface = {
         jobFactory: (txHash: string, type: string) => new Promise((res, rej) => {
             const allowedTypes = [
                 TX_JOB_TYPE_NATION_CREATE,
@@ -83,6 +84,16 @@ export default function(db: DBInterface, ee: EventEmitter): TransactionQueueInte
             };
 
             res(job);
+        }),
+        saveJob: (job: TransactionJobType): Promise<{transKey: string}> => new Promise((res, rej) => {
+            db
+                .write((realm) => realm.create('TransactionJob', job))
+                .then((_) => {
+                    res({
+                        transKey: 'transaction_queue.job_saved',
+                    });
+                })
+                .catch(rej);
         }),
     };
 

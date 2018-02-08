@@ -57,4 +57,29 @@ describe('transaction queue', () => {
                 });
         });
     });
+    describe('saveJob', () => {
+        test('success', (done) => {
+            const db = dbFactory(dbPath());
+
+            const txQueueInstance = transactionQueue(db, null);
+
+            db
+                .query((realm) => realm.objects('TransactionJob').length)
+                .then((transactionJobs) => {
+                    expect(transactionJobs).toBe(0);
+
+                    return txQueueInstance.jobFactory('0x8729514af0b8a5472ae4af1887cf07354032b085656d3cc62a97d6bc12b07194', TX_JOB_TYPE_NATION_JOIN);
+                })
+                .then((txJob) => txQueueInstance.saveJob(txJob))
+                .then((_) => db.query((realm) => realm.objects('TransactionJob')))
+                .then((transactionJobs) => {
+                    expect(transactionJobs[0].txHash).toBe('0x8729514af0b8a5472ae4af1887cf07354032b085656d3cc62a97d6bc12b07194');
+                    expect(transactionJobs[0].status).toBe(200);
+                    expect(transactionJobs[0].type).toBe('NATION_JOIN');
+
+                    done();
+                })
+                .catch(done.fail);
+        });
+    });
 });
