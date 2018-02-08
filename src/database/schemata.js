@@ -125,7 +125,6 @@ export const MessageJobSchema = {
  * @property {string} type Can be something like NATION_JOIN, NATION_LEAVE, NATION_CREATE etc. Used to know what this transaction is about.
  */
 export type TransactionJobType = {
-    id: number,
     txHash: string,
     status: number,
     type: string
@@ -133,9 +132,7 @@ export type TransactionJobType = {
 
 export const TransactionJobSchema = {
     name: 'TransactionJob',
-    primaryKey: 'id',
     properties: {
-        id: 'int',
         txHash: 'string',
         status: 'int',
         type: 'string',
