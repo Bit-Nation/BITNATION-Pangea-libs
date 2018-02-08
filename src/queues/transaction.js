@@ -2,20 +2,14 @@
 
 import type {TransactionJobType} from '../database/schemata';
 import type {DBInterface} from '../database/db';
-import {TRANSACTION_QUEUE_JOB_ADDED} from '../events';
-import type {TxData} from '../specification/tx';
 const EventEmitter = require('eventemitter3');
-const each = require('async/each');
-const Realm = require('realm');
 
 /**
  * @typedef TransactionQueueInterface
  * @property {function(job:TransactionJobInputType) : Promise<void>} addJob Add's an job to the queue and emit's the "transaction_queue:job:added" event
  */
 export interface TransactionQueueInterface {
-    addJob(job: TransactionJobInputType) : Promise<void>,
-    registerProcessor(name: string, processor: (done: (job: TransactionJobType) => void, job: TransactionJobType) => void) : void,
-    process() : Promise<void>
+    jobFactory(txHash: string, type: string) : Promise<TransactionJobType>
 }
 
 /**
@@ -38,6 +32,20 @@ export type TransactionJobInputType = {
     failBody: string,
 }
 
+export const TX_JOB_TYPE_NATION_CREATE = 'NATION_CREATE';
+
+export const TX_JOB_TYPE_NATION_JOIN = 'NATION_JOIN';
+
+export const TX_JOB_TYPE_NATION_LEAVE = 'NATION_LEAVE';
+
+export const TX_JOB_TYPE_ETH_SEND = 'ETH_SEND';
+
+export const TX_JOB_STATUS_PENDING = 200;
+
+export const TX_JOB_STATUS_SUCCESS = 300;
+
+export const TX_JOB_STATUS_FAILED = 400;
+
 /**
  *
  * @param {DBInterface} db
@@ -46,76 +54,35 @@ export type TransactionJobInputType = {
  */
 export default function(db: DBInterface, ee: EventEmitter): TransactionQueueInterface {
     const impl = {
-        processors: {},
-        addJob: (job: TransactionJobInputType): Promise<void> => new Promise((res, rej) => {
-            db
-                .write((realm) => {
-                    realm.create('TransactionJob', {
-                        timeout: job.timeout,
-                        processor: job.processor,
-                        data: JSON.stringify(job.data),
-                        id: realm.objects('TransactionJob').length +1,
-                        version: 1,
-                        successHeading: job.successHeading,
-                        successBody: job.successBody,
-                        failHeading: job.failHeading,
-                        failBody: job.failBody,
-                        status: 'WAITING',
-                    });
-                })
-                .then((_) => {
-                    ee.emit(TRANSACTION_QUEUE_JOB_ADDED);
+        jobFactory: (txHash: string, type: string) => new Promise((res, rej) => {
+            const allowedTypes = [
+                TX_JOB_TYPE_NATION_CREATE,
+                TX_JOB_TYPE_NATION_JOIN,
+                TX_JOB_TYPE_NATION_LEAVE,
+                TX_JOB_TYPE_ETH_SEND,
+            ];
 
-                    res();
-                })
-                .catch(rej);
-        }),
-        registerProcessor: (name: string, processor: (done: (job: TransactionJobType) => void, job: TransactionJobType) => void): void => {
-            impl.processors[name] = processor;
-        },
-        process: (): Promise<void> => new Promise((res, rej) => {
-            db
-                .query(function(realm) {
-                    return realm.objects('TransactionJob');
-                })
-                .then((jobs) => {
-                    each(jobs, function(TXJob: TransactionJobType, cb) {
-                        // find processor
-                        const processor = impl.processors[TXJob.processor];
+            if (!allowedTypes.includes(type)) {
+                return rej({
+                    transKey: 'system_error.tx_queue.invalid_type',
+                    params: {type: type},
+                });
+            }
 
-                        if (typeof processor !== 'function') {
-                            return rej(new Error(`Couldn't find processor for ${TXJob.processor}`));
-                        }
+            if (!/^0x([A-Fa-f0-9]{64})$/.exec(txHash)) {
+                return rej({
+                    transKey: 'system_error.tx_hash_invalid',
+                    params: {txHash},
+                });
+            }
 
-                        /**
-                         * @desc This should be called in the processor to end the job
-                         * @param {TransactionJobType} job
-                         */
-                        function done(job: TransactionJobType) {
-                            if (typeof job.data !== 'string') {
-                                return rej('data must be an string');
-                            }
+            const job:TransactionJobType = {
+                txHash: txHash,
+                status: 200,
+                type: type,
+            };
 
-                            job.id = TXJob.id;
-
-                            db
-                                .write((realm: Realm) => realm.create('TransactionJob', job, true))
-                                .then((_) => cb())
-                                .catch((error) => cb(error));
-                        }
-
-                        // JOSN.parse / stringify is used to remove the realm context from the object
-                        // there might be a better solution for it
-                        processor(done, JSON.parse(JSON.stringify(TXJob)));
-                    }, (error) => {
-                        if (error) {
-                            return rej(error);
-                        }
-
-                        res();
-                    });
-                })
-                .catch(rej);
+            res(job);
         }),
     };
 
