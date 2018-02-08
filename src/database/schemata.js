@@ -122,7 +122,7 @@ export const MessageJobSchema = {
  * @property {number} id
  * @property {string} txHash
  * @property {number} status
- * @property {string} type
+ * @property {string} type Can be something like NATION_JOIN, NATION_LEAVE, NATION_CREATE etc. Used to know what this transaction is about.
  */
 export type TransactionJobType = {
     id: number,
@@ -158,6 +158,9 @@ export const TransactionJobSchema = {
  * @property {boolean} diplomaticRecognition
  * @property {string} decisionMakingProcess
  * @property {string} governanceService
+ * @property {number} citizens
+ * @property {boolean} joined
+ * @property {TransactionJobType | null} tx
  */
 export type NationType = {
     id: number,
@@ -176,7 +179,7 @@ export type NationType = {
     governanceService: string,
     citizens: number,
     joined: boolean,
-    txHash: string
+    tx: TransactionJobType | null
 }
 
 export const NationSchema = {
@@ -188,8 +191,8 @@ export const NationSchema = {
             default: -1,
             type: 'int',
         },
-        txHash: {
-            type: 'string',
+        tx: {
+            type: 'TransactionJob',
             optional: true,
         },
         created: 'bool',
