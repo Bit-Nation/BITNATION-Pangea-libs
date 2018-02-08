@@ -1,4 +1,4 @@
-import transactionQueue, {TX_JOB_TYPE_NATION_JOIN} from './transaction';
+import TransactionQueue, {TX_JOB_TYPE_NATION_JOIN} from './transaction';
 import messagingQueue from './messaging';
 import type {TransactionJobType} from '../database/schemata';
 const EventEmitter = require('eventemitter3');
@@ -10,7 +10,7 @@ const dbPath = () => 'database/'+Math.random();
 describe('transaction queue', () => {
     describe('factory', () => {
         test('invalid type', (done) => {
-            const txQueueInstance = transactionQueue(dbFactory(dbPath()), null);
+            const txQueueInstance = new TransactionQueue(dbFactory(dbPath()), null);
 
             txQueueInstance
                 .jobFactory('0x8729514af0b8a5472ae4af1887cf07354032b085656d3cc62a97d6bc12b07194', 'I_AM_THE_WRONG_TYPE')
@@ -25,7 +25,7 @@ describe('transaction queue', () => {
         });
 
         test('invalid transaction hash', (done) => {
-            const txQueueInstance = transactionQueue(dbFactory(dbPath()), null);
+            const txQueueInstance = new TransactionQueue(dbFactory(dbPath()), null);
 
             txQueueInstance
                 .jobFactory('0x8729514af0b8a5472ae_INVALID_TRANSACTION_HASH_4af1887cf07354032b085656d3cc62a97d6bc12b07194', TX_JOB_TYPE_NATION_JOIN)
@@ -42,7 +42,7 @@ describe('transaction queue', () => {
         });
 
         test('success', (done) => {
-            const txQueueInstance = transactionQueue(dbFactory(dbPath()), null);
+            const txQueueInstance = new TransactionQueue(dbFactory(dbPath()), null);
 
             txQueueInstance
                 .jobFactory('0x8729514af0b8a5472ae4af1887cf07354032b085656d3cc62a97d6bc12b07194', TX_JOB_TYPE_NATION_JOIN)
@@ -61,7 +61,16 @@ describe('transaction queue', () => {
         test('success', (done) => {
             const db = dbFactory(dbPath());
 
-            const txQueueInstance = transactionQueue(db, null);
+            const eventEmitterMock = {
+                emit: jest.fn(function(eventName, job) {
+                    expect(eventName).toBe(TRANSACTION_QUEUE_JOB_ADDED);
+                    expect(job.txHash).toBe('0x8729514af0b8a5472ae4af1887cf07354032b085656d3cc62a97d6bc12b07194');
+                    expect(job.status).toBe(200);
+                    expect(job.type).toBe('NATION_JOIN');
+                }),
+            };
+
+            const txQueueInstance = new TransactionQueue(db, eventEmitterMock);
 
             db
                 .query((realm) => realm.objects('TransactionJob').length)
@@ -76,7 +85,8 @@ describe('transaction queue', () => {
                     expect(transactionJobs[0].txHash).toBe('0x8729514af0b8a5472ae4af1887cf07354032b085656d3cc62a97d6bc12b07194');
                     expect(transactionJobs[0].status).toBe(200);
                     expect(transactionJobs[0].type).toBe('NATION_JOIN');
-
+                    // Make sure the event was emitted
+                    expect(eventEmitterMock.emit).toHaveBeenCalledTimes(1);
                     done();
                 })
                 .catch(done.fail);

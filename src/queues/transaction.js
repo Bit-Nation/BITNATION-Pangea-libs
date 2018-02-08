@@ -2,7 +2,12 @@
 
 import type {TransactionJobType} from '../database/schemata';
 import type {DBInterface} from '../database/db';
+import {TRANSACTION_QUEUE_JOB_ADDED} from './../events';
+import {MessagingQueueInterface, Msg} from './messaging';
 const EventEmitter = require('eventemitter3');
+const Web3 = require('web3');
+const eachSeries = require('async/eachSeries');
+const waterfall = require('async/waterfall');
 
 /**
  * @typedef TransactionQueueInterface
@@ -10,27 +15,7 @@ const EventEmitter = require('eventemitter3');
  */
 export interface TransactionQueueInterface {
     jobFactory(txHash: string, type: string) : Promise<TransactionJobType>,
-    saveJob(job: TransactionJobType) : Promise<{transKey: string}>
-}
-
-/**
- * @typedef TransactionJobInputType
- * @property {number} timeout
- * @property {string} processor
- * @property {object} data
- * @property {string} successHeading
- * @property {string} successBody
- * @property {string} failHeading
- * @property {string} failBody
- */
-export type TransactionJobInputType = {
-    timeout: number,
-    processor: string,
-    data: {...mixed},
-    successHeading: string,
-    successBody: string,
-    failHeading: string,
-    failBody: string,
+    saveJob(job: TransactionJobType) : Promise<void>
 }
 
 export const TX_JOB_TYPE_NATION_CREATE = 'NATION_CREATE';
@@ -47,15 +32,36 @@ export const TX_JOB_STATUS_SUCCESS = 300;
 
 export const TX_JOB_STATUS_FAILED = 400;
 
-/**
- *
- * @param {DBInterface} db
- * @param {EventEmitter} ee
- * @return {TransactionQueueInterface}
- */
-export default function(db: DBInterface, ee: EventEmitter): TransactionQueueInterface {
-    const impl:TransactionQueueInterface = {
-        jobFactory: (txHash: string, type: string) => new Promise((res, rej) => {
+export default class TransactionQueue implements TransactionQueueInterface {
+    _db: DBInterface;
+    _ee: EventEmitter;
+    _web3: Web3;
+    _msgQueue: MessagingQueueInterface;
+    _jobStack: Array<TransactionJobType>;
+
+    /**
+     *
+     * @param db
+     * @param ee
+     * @param web3
+     * @param msgQueue
+     */
+    constructor(db: DBInterface, ee: EventEmitter, web3: Web3, msgQueue: MessagingQueueInterface) {
+        this._db = db;
+        this._ee = ee;
+        this._web3 = web3;
+        this._msgQueue = msgQueue;
+        this._jobStack = [];
+    }
+
+    /**
+     *
+     * @param txHash
+     * @param type
+     * @return {Promise<any>}
+     */
+    jobFactory(txHash: string, type: string): Promise<TransactionJobType> {
+        return new Promise((res, rej) => {
             const allowedTypes = [
                 TX_JOB_TYPE_NATION_CREATE,
                 TX_JOB_TYPE_NATION_JOIN,
@@ -84,18 +90,24 @@ export default function(db: DBInterface, ee: EventEmitter): TransactionQueueInte
             };
 
             res(job);
-        }),
-        saveJob: (job: TransactionJobType): Promise<{transKey: string}> => new Promise((res, rej) => {
-            db
+        });
+    }
+
+    /**
+     *
+     * @param job
+     * @return {Promise<any>}
+     */
+    saveJob(job: TransactionJobType): Promise<void> {
+        return new Promise((res, rej) => {
+            this._db
                 .write((realm) => realm.create('TransactionJob', job))
-                .then((_) => {
-                    res({
-                        transKey: 'transaction_queue.job_saved',
-                    });
+                .then((job: TransactionJobType) => {
+                    this._ee.emit(TRANSACTION_QUEUE_JOB_ADDED, job);
+                    this._jobStack.push(job);
+                    res();
                 })
                 .catch(rej);
-        }),
-    };
-
-    return impl;
+        });
+    }
 }
