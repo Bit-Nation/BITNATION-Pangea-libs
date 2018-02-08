@@ -136,6 +136,11 @@ export const TransactionJobSchema = {
         txHash: 'string',
         status: 'int',
         type: 'string',
+        nation: {
+            type: 'linkingObjects',
+            objectType: 'Nation',
+            property: 'tx',
+        },
     },
 };
 
