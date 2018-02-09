@@ -131,7 +131,7 @@ export default class TransactionQueue implements TransactionQueueInterface {
 
                 customProcessor('0x1' === receipt.status, job)
                     .then((result: Msg | null) => {
-                        if (result === null) {
+                        if (!result) {
                             return res();
                         }
 

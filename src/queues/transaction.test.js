@@ -160,6 +160,7 @@ describe('transaction queue', () => {
                 })
                 .then((_) => {
                     expect(_).toBeUndefined();
+                    done();
                 })
                 .catch(done.fail);
         });
