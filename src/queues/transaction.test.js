@@ -1,10 +1,8 @@
-import TransactionQueue, {TX_JOB_TYPE_NATION_JOIN} from './transaction';
-import messagingQueue from './messaging';
+import TransactionQueue, {TX_JOB_TYPE_NATION_JOIN, Msg} from './transaction';
 import type {TransactionJobType} from '../database/schemata';
-const EventEmitter = require('eventemitter3');
-import {TRANSACTION_QUEUE_JOB_ADDED} from '../events';
+import {TRANSACTION_QUEUE_JOB_ADDED, TRANSACTION_QUEUE_FINISHED_CYCLE} from '../events';
 import dbFactory from '../database/db';
-
+const EventEmitter = require('eventemitter3');
 const dbPath = () => 'database/'+Math.random();
 
 describe('transaction queue', () => {
@@ -196,6 +194,57 @@ describe('transaction queue', () => {
                     expect(msgQueueMock.addJob).toHaveBeenCalledTimes(1);
                     expect(_).toBeUndefined();
                     done();
+                })
+                .catch(done.fail);
+        });
+    });
+    describe('startProcessing', () => {
+        test('success', (done) => {
+            const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
+
+            let rounds = 0;
+
+            ee.on(TRANSACTION_QUEUE_FINISHED_CYCLE, () => {
+                if (rounds === 2) {
+                    done();
+                }
+
+                rounds++;
+            });
+
+            const web3Mock = {
+                eth: {
+                    getTransactionReceipt: function(hash, cb) {
+                        cb(null, {status: '0x1'});
+                    },
+                },
+            };
+
+            const msgQueueMock = {
+
+            };
+
+            const txQueue = new TransactionQueue(db, ee, web3Mock, msgQueueMock);
+            // mock time for next processing cycle
+            txQueue._processingTimeout = 1000;
+
+            // Reset the processor since we need an custom for this testing
+            txQueue._processors = {
+                'NATION_JOIN': (txSuccess:boolean, job:TransactionJobType) => {
+                    return new Msg('ok');
+                },
+            };
+
+            txQueue
+                .jobFactory('0x5983f5ba66fdf89385247c923feeee941d16d6969156109447f8916d8ef93fb9', TX_JOB_TYPE_NATION_JOIN)
+                .then((job:TransactionJobType) => {
+                    txQueue
+                        .saveJob(job)
+                        .then((_) => {
+                            txQueue.startProcessing();
+                        })
+                        .catch(done.fail);
                 })
                 .catch(done.fail);
         });
