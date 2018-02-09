@@ -127,7 +127,8 @@ export const MessageJobSchema = {
 export type TransactionJobType = {
     txHash: string,
     status: number,
-    type: string
+    type: string,
+    nation: NationType | null
 }
 
 export const TransactionJobSchema = {
