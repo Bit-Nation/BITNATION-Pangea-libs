@@ -49,6 +49,7 @@ describe('transaction queue', () => {
                         txHash: '0x8729514af0b8a5472ae4af1887cf07354032b085656d3cc62a97d6bc12b07194',
                         status: 200,
                         type: TX_JOB_TYPE_NATION_JOIN,
+                        nation: null,
                     });
 
                     done();
