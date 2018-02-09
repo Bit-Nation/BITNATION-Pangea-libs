@@ -117,7 +117,7 @@ export default class TransactionQueue implements TransactionQueueInterface {
      * @param customProcessor
      * @return {Promise<any>}
      */
-    processTransaction(job: TransactionJobType, customProcessor: (txSuccess: boolean) => Promise<Msg | null>): Promise<void> {
+    processTransaction(job: TransactionJobType, customProcessor: (txSuccess: boolean, job: TransactionJobType) => Promise<Msg | null>): Promise<void> {
         return new Promise((res, rej) => {
             this._web3.eth.getTransactionReceipt(job.txHash, (err, receipt) => {
                 if (err) {
@@ -129,7 +129,7 @@ export default class TransactionQueue implements TransactionQueueInterface {
                     return res();
                 }
 
-                customProcessor('0x1' === receipt.status)
+                customProcessor('0x1' === receipt.status, job)
                     .then((result: Msg | null) => {
                         if (result === null) {
                             return res();

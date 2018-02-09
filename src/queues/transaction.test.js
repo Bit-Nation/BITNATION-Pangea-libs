@@ -139,5 +139,29 @@ describe('transaction queue', () => {
                 })
                 .catch(done.fail);
         });
+        test('customProcessor null return value', (done) => {
+            const db = dbFactory(dbPath());
+
+            const web3Mock = {
+                eth: {
+                    getTransactionReceipt: jest.fn((txHash, cb) => {
+                        expect(txHash).toBe('abc');
+                        cb(null, {status: '0x1'});
+                    }),
+                },
+            };
+
+            const txQueueInstance = new TransactionQueue(db, new EventEmitter(), web3Mock);
+            txQueueInstance
+                .processTransaction({txHash: 'abc'}, (txSuccess, jobType) => {
+                    expect(txSuccess).toBeTruthy();
+                    expect(jobType).toEqual({txHash: 'abc'});
+                    return new Promise((res, rej) => res());
+                })
+                .then((_) => {
+                    expect(_).toBeUndefined();
+                })
+                .catch(done.fail);
+        });
     });
 });
