@@ -9,8 +9,11 @@ See [here](http://bitnation-pangea-libs.readthedocs.io/) for the documentation. 
 
 ## Development
 
-We are using docker for development.
+### Dependencies
 
-1. Get docker
-2. Run `docker-compose up -d`
-3. Run `docker-compose exec node bash`
+Mac OS X
+Node version 8.x. Version 6.x was confirmed to not work for at least one developer. 
+
+### Instructions
+
+We are working off of the latest `develop` branch by default. Run `npm install` when switching to a new branch. Run `npm test` to test the functionality of this project.
