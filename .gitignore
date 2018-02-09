@@ -9,3 +9,8 @@ docs_build
 out/
 build/
 tec_docs
+
+# Junk cache/temp files
+database/
+jest_0/
+flow
