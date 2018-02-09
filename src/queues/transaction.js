@@ -110,4 +110,44 @@ export default class TransactionQueue implements TransactionQueueInterface {
                 .catch(rej);
         });
     }
+
+    /**
+     * @desc Higher order function for processing a transaction job
+     * @param job
+     * @param customProcessor
+     * @return {Promise<any>}
+     */
+    processTransaction(job: TransactionJobType, customProcessor: (txSuccess: boolean) => Promise<Msg | null>): Promise<void> {
+        return new Promise((res, rej) => {
+            this._web3.eth.getTransactionReceipt(job.txHash, (err, receipt) => {
+                if (err) {
+                    return rej(err);
+                }
+
+                // When the transaction is pending there is no receipt - so we can resolve
+                if (!receipt) {
+                    return res();
+                }
+
+                customProcessor('0x1' === receipt.status)
+                    .then((result: Msg | null) => {
+                        if (result === null) {
+                            return res();
+                        }
+
+                        this
+                            ._msgQueue
+                            .addJob(result)
+                            .then((_) => {
+                                // @todo log
+                                res();
+                            })
+                            .catch((_) => {
+                                // @todo log
+                                rej();
+                            });
+                    });
+            });
+        });
+    }
 }

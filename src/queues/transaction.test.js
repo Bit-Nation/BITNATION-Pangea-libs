@@ -92,4 +92,30 @@ describe('transaction queue', () => {
                 .catch(done.fail);
         });
     });
+    describe('transactionProcessor', () => {
+        test('web3 error', (done) => {
+            const db = dbFactory(dbPath());
+
+            const error = {};
+
+            const web3Mock = {
+                eth: {
+                    getTransactionReceipt: jest.fn((txHash, cb) => {
+                        expect(txHash).toBe('abc');
+                        cb(error);
+                    }),
+                },
+            };
+
+            const txQueueInstance = new TransactionQueue(db, new EventEmitter(), web3Mock);
+
+            txQueueInstance
+                .processTransaction({txHash: 'abc'}, () => {})
+                .then(done.fail)
+                .catch((e) => {
+                    expect(e).toBe(error);
+                    done();
+                });
+        });
+    });
 });
