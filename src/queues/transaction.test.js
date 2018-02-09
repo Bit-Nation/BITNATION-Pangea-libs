@@ -250,4 +250,21 @@ describe('transaction queue', () => {
                 .catch(done.fail);
         });
     });
+    describe('processors - NATION_CREATE', () => {
+        test(`Try to process nation without a job`, (done) => {
+            const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
+
+            const txQueue = new TransactionQueue(db, ee, null, null);
+
+            const nation = {};
+
+            txQueue._processors['NATION_CREATE'](true, nation)
+                .then()
+                .catch((e) => {
+                    expect(e).toBe('There is no nation present on the job object');
+                    done();
+                });
+        });
+    });
 });
