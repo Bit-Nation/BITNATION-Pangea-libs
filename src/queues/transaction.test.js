@@ -117,5 +117,27 @@ describe('transaction queue', () => {
                     done();
                 });
         });
+        test('web3 not tx receipt', (done) => {
+            const db = dbFactory(dbPath());
+
+            const web3Mock = {
+                eth: {
+                    getTransactionReceipt: jest.fn((txHash, cb) => {
+                        expect(txHash).toBe('abc');
+                        cb(null, null);
+                    }),
+                },
+            };
+
+            const txQueueInstance = new TransactionQueue(db, new EventEmitter(), web3Mock);
+
+            txQueueInstance
+                .processTransaction({txHash: 'abc'}, () => {})
+                .then((_) => {
+                    expect(_).toBeUndefined();
+                    done();
+                })
+                .catch(done.fail);
+        });
     });
 });
