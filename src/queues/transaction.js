@@ -2,16 +2,16 @@
 
 import type {TransactionJobType} from '../database/schemata';
 import type {DBInterface} from '../database/db';
-import {TRANSACTION_QUEUE_JOB_ADDED} from './../events';
+import {TRANSACTION_QUEUE_JOB_ADDED, TRANSACTION_QUEUE_FINISHED_CYCLE} from './../events';
 import {MessagingQueueInterface, Msg} from './messaging';
 const EventEmitter = require('eventemitter3');
 const Web3 = require('web3');
 const eachSeries = require('async/eachSeries');
 const waterfall = require('async/waterfall');
+import {NATION_JOIN_FAILED, NATION_JOIN_SUCCEED, NATION_ALERT_HEADING} from '../transKeys';
 
 /**
- * @typedef TransactionQueueInterface
- * @property {function(job:TransactionJobInputType) : Promise<void>} addJob Add's an job to the queue and emit's the "transaction_queue:job:added" event
+ *
  */
 export interface TransactionQueueInterface {
     jobFactory(txHash: string, type: string) : Promise<TransactionJobType>,
@@ -37,7 +37,40 @@ export default class TransactionQueue implements TransactionQueueInterface {
     _ee: EventEmitter;
     _web3: Web3;
     _msgQueue: MessagingQueueInterface;
-    _jobStack: Array<TransactionJobType>;
+    _jobStack: Array<TransactionJobType> = [];
+    _processingTimeout = 60 * 1000;
+    _startedWorker: boolean = false;
+    _processors = {
+        'NATION_CREATE': (txSuccess: boolean, job: TransactionJobType): Promise<Msg | null> => {
+            return new Promise((res, rej) => {
+                if (!job.nation) {
+                    return rej(`There is no nation present on the job object`);
+                }
+                if (typeof txSuccess === 'boolean') {
+                    this
+                        ._db
+                        .write((realm) => {
+                            realm.delete(job);
+                            // $FlowFixMe WE check above if the nation exist. So no reason to complain.
+                            job.nation.joined = txSuccess;
+                        })
+                        .then((_) => {
+                            if (txSuccess === true) {
+                                // $FlowFixMe WE check above if the nation exist. So no reason to complain.
+                                let msg = new Msg(NATION_JOIN_SUCCEED, {nationName: job.nation.nationName});
+                                msg.display(NATION_ALERT_HEADING);
+                                return res(msg);
+                            }
+                            // $FlowFixMe WE check above if the nation exist. So no reason to complain.
+                            let msg = new Msg(NATION_JOIN_FAILED, {nationName: job.nation.nationName});
+                            msg.display(NATION_ALERT_HEADING);
+                            res(msg);
+                        })
+                        .catch(rej);
+                }
+            });
+        },
+    };
 
     /**
      *
@@ -51,7 +84,6 @@ export default class TransactionQueue implements TransactionQueueInterface {
         this._ee = ee;
         this._web3 = web3;
         this._msgQueue = msgQueue;
-        this._jobStack = [];
     }
 
     /**
@@ -87,10 +119,51 @@ export default class TransactionQueue implements TransactionQueueInterface {
                 txHash: txHash,
                 status: 200,
                 type: type,
+                nation: null,
             };
 
             res(job);
         });
+    }
+
+    startProcessing(): void {
+        if (this._startedWorker) {
+            return;
+        }
+
+        this._startedWorker = true;
+
+        this
+            ._db
+            .query((realm) => realm.objects('TransactionJob').filtered('status = "200"'))
+            .then((jobs: Array<TransactionJobType>) => {
+                jobs.map((job: TransactionJobType) => this._jobStack.push(job));
+
+                const processAction = () => {
+                    eachSeries(this._jobStack, (job: TransactionJobType, done) => {
+                        const p = this._processors[job.type];
+
+                        if (typeof p !== 'function') {
+                            return done(`Couldn't find a processor for type: ${job.type}`);
+                        }
+
+                        this
+                            .processTransaction(job, p)
+                            .then((_) => done())
+                            .catch(done);
+                    }, (err) => {
+                        // @todo handle error (maybe log?)
+                        this._ee.emit(TRANSACTION_QUEUE_FINISHED_CYCLE);
+                        setTimeout(processAction, this._processingTimeout);
+                    });
+                };
+
+                processAction();
+            })
+            .catch((e) => {
+                // @todo log
+                console.log(e);
+            });
     }
 
     /**
