@@ -251,16 +251,30 @@ describe('transaction queue', () => {
         });
     });
     describe('processors - NATION_CREATE', () => {
+        const nationData = {
+            nationName: 'Bitnation',
+            nationDescription: 'We <3 cryptography',
+            exists: true,
+            virtualNation: false,
+            nationCode: 'Code civil',
+            lawEnforcementMechanism: 'xyz',
+            profit: true,
+            nonCitizenUse: false,
+            diplomaticRecognition: false,
+            decisionMakingProcess: 'dictatorship',
+            governanceService: 'Security',
+        };
         test(`Try to process nation without a job`, (done) => {
             const db = dbFactory(dbPath());
             const ee = new EventEmitter();
 
             const txQueue = new TransactionQueue(db, ee, null, null);
 
-            const nation = {};
 
-            txQueue._processors['NATION_CREATE'](true, nation)
-                .then()
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {id: 1, created: false})))
+                .then((nation) => txQueue._processors['NATION_CREATE'](true, nation))
+                .then(done.fail)
                 .catch((e) => {
                     expect(e).toBe('There is no nation present on the job object');
                     done();
