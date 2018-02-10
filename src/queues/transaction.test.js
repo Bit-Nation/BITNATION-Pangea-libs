@@ -302,7 +302,7 @@ describe('transaction queue', () => {
                 .then((nation) => {
                     txQueue._processors['NATION_CREATE'](true, nation.tx)
                         .then((msg) => {
-                            expect(msg._msg).toBe('nation.join.succeed');
+                            expect(msg._msg).toBe('nation.create.succeed');
                             expect(msg._params).toEqual({
                                 nationName: 'Bitnation',
                             });
@@ -311,7 +311,10 @@ describe('transaction queue', () => {
                             expect(msg._display).toBeTruthy();
 
                             expect(nation.joined).toBeTruthy();
-                            expect(nation.tx).toBeUndefined();
+
+                            expect(nation.tx.txHash).toBe('0x3b45d7e69eb85a18769ae79790879aa883b1732dd2fcd82ef5f561ad9db73fd9');
+                            expect(nation.tx.status).toBe(300);
+                            expect(nation.tx.type).toBe('NATION_CREATE');
 
                             done();
                         })

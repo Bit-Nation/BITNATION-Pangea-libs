@@ -8,7 +8,7 @@ const EventEmitter = require('eventemitter3');
 const Web3 = require('web3');
 const eachSeries = require('async/eachSeries');
 const waterfall = require('async/waterfall');
-import {NATION_JOIN_FAILED, NATION_JOIN_SUCCEED, NATION_ALERT_HEADING} from '../transKeys';
+import {NATION_CREATE_FAILED, NATION_CREATE_SUCCEED, NATION_ALERT_HEADING} from '../transKeys';
 
 /**
  *
@@ -47,25 +47,31 @@ export default class TransactionQueue implements TransactionQueueInterface {
                     return rej(`There is no nation present on the job object`);
                 }
                 // $FlowFixMe WE check above if the nation exist. So no reason to complain.
-                const nationName = job.nation[0].nationName;
+                // The relation to nation is an realm result's object
+                const nation = job.nation[0];
+                const nationName = nation.nationName;
 
                 if (typeof txSuccess === 'boolean') {
                     this
                         ._db
                         .write((realm) => {
                             // $FlowFixMe WE check above if the nation exist. So no reason to complain.
-                            job.nation.joined = txSuccess;
-                            realm.delete(job);
+                            nation.joined = txSuccess;
+                            if (txSuccess === true) {
+                                job.status = TX_JOB_STATUS_SUCCESS;
+                            } else {
+                                job.status = TX_JOB_STATUS_FAILED;
+                            }
                         })
                         .then((_) => {
                             if (txSuccess === true) {
                                 // $FlowFixMe WE check above if the nation exist. So no reason to complain.
-                                let msg = new Msg(NATION_JOIN_SUCCEED, {nationName});
+                                let msg = new Msg(NATION_CREATE_SUCCEED, {nationName});
                                 msg.display(NATION_ALERT_HEADING);
                                 return res(msg);
                             }
                             // $FlowFixMe WE check above if the nation exist. So no reason to complain.
-                            let msg = new Msg(NATION_JOIN_FAILED, {nationName});
+                            let msg = new Msg(NATION_CREATE_FAILED, {nationName});
                             msg.display(NATION_ALERT_HEADING);
                             res(msg);
                         })
