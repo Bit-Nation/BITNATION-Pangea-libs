@@ -1,4 +1,7 @@
-import TransactionQueue, {TX_JOB_TYPE_NATION_JOIN, Msg} from './transaction';
+import TransactionQueue, {
+    TX_JOB_TYPE_NATION_JOIN, Msg, TX_JOB_TYPE_NATION_CREATE,
+    TX_JOB_STATUS_PENDING,
+} from './transaction';
 import type {TransactionJobType} from '../database/schemata';
 import {TRANSACTION_QUEUE_JOB_ADDED, TRANSACTION_QUEUE_FINISHED_CYCLE} from '../events';
 import dbFactory from '../database/db';
@@ -278,6 +281,41 @@ describe('transaction queue', () => {
                 .catch((e) => {
                     expect(e).toBe('There is no nation present on the job object');
                     done();
+                });
+        });
+        test('process nation created successfully job', (done) => {
+            const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
+
+            const txQueue = new TransactionQueue(db, ee, null, null);
+
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {
+                    id: 1,
+                    created: false,
+                    tx: {
+                        txHash: '0x3b45d7e69eb85a18769ae79790879aa883b1732dd2fcd82ef5f561ad9db73fd9',
+                        status: TX_JOB_STATUS_PENDING,
+                        type: TX_JOB_TYPE_NATION_CREATE,
+                    },
+                })))
+                .then((nation) => {
+                    txQueue._processors['NATION_CREATE'](true, nation.tx)
+                        .then((msg) => {
+                            expect(msg._msg).toBe('nation.join.succeed');
+                            expect(msg._params).toEqual({
+                                nationName: 'Bitnation',
+                            });
+                            expect(msg._interpret).toBeTruthy();
+                            expect(msg._heading).toBe('nation.heading');
+                            expect(msg._display).toBeTruthy();
+
+                            expect(nation.joined).toBeTruthy();
+                            expect(nation.tx).toBeUndefined();
+
+                            done();
+                        })
+                        .catch(done.fail);
                 });
         });
     });

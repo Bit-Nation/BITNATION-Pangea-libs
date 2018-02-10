@@ -46,23 +46,26 @@ export default class TransactionQueue implements TransactionQueueInterface {
                 if (!job.nation) {
                     return rej(`There is no nation present on the job object`);
                 }
+                // $FlowFixMe WE check above if the nation exist. So no reason to complain.
+                const nationName = job.nation[0].nationName;
+
                 if (typeof txSuccess === 'boolean') {
                     this
                         ._db
                         .write((realm) => {
-                            realm.delete(job);
                             // $FlowFixMe WE check above if the nation exist. So no reason to complain.
                             job.nation.joined = txSuccess;
+                            realm.delete(job);
                         })
                         .then((_) => {
                             if (txSuccess === true) {
                                 // $FlowFixMe WE check above if the nation exist. So no reason to complain.
-                                let msg = new Msg(NATION_JOIN_SUCCEED, {nationName: job.nation.nationName});
+                                let msg = new Msg(NATION_JOIN_SUCCEED, {nationName});
                                 msg.display(NATION_ALERT_HEADING);
                                 return res(msg);
                             }
                             // $FlowFixMe WE check above if the nation exist. So no reason to complain.
-                            let msg = new Msg(NATION_JOIN_FAILED, {nationName: job.nation.nationName});
+                            let msg = new Msg(NATION_JOIN_FAILED, {nationName});
                             msg.display(NATION_ALERT_HEADING);
                             res(msg);
                         })
