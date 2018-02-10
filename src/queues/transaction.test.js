@@ -321,5 +321,43 @@ describe('transaction queue', () => {
                         .catch(done.fail);
                 });
         });
+        test('process nation created successfully job', (done) => {
+            const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
+
+            const txQueue = new TransactionQueue(db, ee, null, null);
+
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {
+                    id: 1,
+                    created: false,
+                    tx: {
+                        txHash: '0x3b45d7e69eb85a18769ae79790879aa883b1732dd2fcd82ef5f561ad9db73fd9',
+                        status: TX_JOB_STATUS_PENDING,
+                        type: TX_JOB_TYPE_NATION_CREATE,
+                    },
+                })))
+                .then((nation) => {
+                    txQueue._processors['NATION_CREATE'](false, nation.tx)
+                        .then((msg) => {
+                            expect(msg._msg).toBe('nation.create.failed');
+                            expect(msg._params).toEqual({
+                                nationName: 'Bitnation',
+                            });
+                            expect(msg._interpret).toBeTruthy();
+                            expect(msg._heading).toBe('nation.heading');
+                            expect(msg._display).toBeTruthy();
+
+                            expect(nation.joined).toBeFalsy();
+
+                            expect(nation.tx.txHash).toBe('0x3b45d7e69eb85a18769ae79790879aa883b1732dd2fcd82ef5f561ad9db73fd9');
+                            expect(nation.tx.status).toBe(400);
+                            expect(nation.tx.type).toBe('NATION_CREATE');
+
+                            done();
+                        })
+                        .catch(done.fail);
+                });
+        });
     });
 });
