@@ -14,6 +14,8 @@ import {
     NATION_ALERT_HEADING,
     NATION_JOIN_SUCCEED,
     NATION_JOIN_FAILED,
+    NATION_LEAVE_FAILED,
+    NATION_LEAVE_SUCCEED,
 } from '../transKeys';
 
 /**
@@ -110,6 +112,40 @@ export default class TransactionQueue implements TransactionQueueInterface {
                             if (txSuccess === true) {
                                 msg = new Msg(NATION_JOIN_SUCCEED, {nationName: nationName}, true);
                             };
+
+                            msg.display(NATION_ALERT_HEADING);
+                            res(msg);
+                        })
+                        .catch();
+                }
+            });
+        },
+        'NATION_LEAVE': (txSuccess: boolean, job: TransactionJobType): Promise<Msg | null> => {
+            return new Promise((res, rej) => {
+                if (!job.nation) {
+                    return rej(`There is no nation present on the job object`);
+                }
+                // $FlowFixMe WE check above if the nation exist. So no reason to complain.
+                // The relation to nation is an realm result's object
+                const nationName = job.nation[0].nationName;
+
+                if (typeof txSuccess === 'boolean') {
+                    this
+                        ._db
+                        .write((realm) => {
+                            if (txSuccess === true) {
+                                job.status = TX_JOB_STATUS_SUCCESS;
+                                return;
+                            }
+
+                            job.status = TX_JOB_STATUS_FAILED;
+                        })
+                        .then((_) => {
+                            let msg = new Msg(NATION_LEAVE_FAILED, {nationName: nationName}, true);
+
+                            if (txSuccess === true) {
+                                msg = new Msg(NATION_LEAVE_SUCCEED, {nationName: nationName}, true);
+                            }
 
                             msg.display(NATION_ALERT_HEADING);
                             res(msg);

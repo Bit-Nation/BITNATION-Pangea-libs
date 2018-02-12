@@ -509,7 +509,7 @@ describe('transaction queue', () => {
                 })
                 .catch(done.fail);
         });
-        test('leave failed', () => {
+        test('leave failed', (done) => {
             const db = dbFactory(dbPath());
             const ee = new EventEmitter();
 
