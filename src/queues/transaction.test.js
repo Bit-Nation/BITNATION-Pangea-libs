@@ -1,6 +1,6 @@
 import TransactionQueue, {
     TX_JOB_TYPE_NATION_JOIN, Msg, TX_JOB_TYPE_NATION_CREATE,
-    TX_JOB_STATUS_PENDING,
+    TX_JOB_STATUS_PENDING, TX_JOB_TYPE_NATION_LEAVE,
 } from './transaction';
 import type {TransactionJobType} from '../database/schemata';
 import {TRANSACTION_QUEUE_JOB_ADDED, TRANSACTION_QUEUE_FINISHED_CYCLE} from '../events';
@@ -470,6 +470,44 @@ describe('transaction queue', () => {
                     expect(e).toBe('There is no nation present on the job object');
                     done();
                 });
+        });
+        test('leave success', (done) => {
+            const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
+
+            const txQueue = new TransactionQueue(db, ee, null, null);
+
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {
+                    id: 1,
+                    created: false,
+                    tx: {
+                        txHash: '0x3b45d7e69eb85a18769ae79790879aa883b1732dd2fcd82ef5f561ad9db73fd9',
+                        status: TX_JOB_STATUS_PENDING,
+                        type: TX_JOB_TYPE_NATION_LEAVE,
+                    },
+                })))
+                .then((nation) => {
+                    txQueue
+                        ._processors['NATION_LEAVE'](true, nation.tx)
+                        .then((msg:Msg) => {
+                            expect(msg._heading).toBe('nation.heading');
+                            expect(msg._params).toEqual({
+                                nationName: 'Bitnation',
+                            });
+                            expect(msg._interpret).toBeTruthy();
+                            expect(msg._msg).toBe('nation.leave.succeed');
+                            expect(msg._display).toBeTruthy();
+
+                            expect(nation.tx.txHash).toBe('0x3b45d7e69eb85a18769ae79790879aa883b1732dd2fcd82ef5f561ad9db73fd9');
+                            expect(nation.tx.status).toBe(300);
+                            expect(nation.tx.type).toBe(TX_JOB_TYPE_NATION_LEAVE);
+
+                            done();
+                        })
+                        .catch(done.fail);
+                })
+                .catch(done.fail);
         });
     });
 });
