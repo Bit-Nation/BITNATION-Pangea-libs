@@ -9,6 +9,19 @@ const EventEmitter = require('eventemitter3');
 const dbPath = () => 'database/'+Math.random();
 
 describe('transaction queue', () => {
+    const nationData = {
+        nationName: 'Bitnation',
+        nationDescription: 'We <3 cryptography',
+        exists: true,
+        virtualNation: false,
+        nationCode: 'Code civil',
+        lawEnforcementMechanism: 'xyz',
+        profit: true,
+        nonCitizenUse: false,
+        diplomaticRecognition: false,
+        decisionMakingProcess: 'dictatorship',
+        governanceService: 'Security',
+    };
     describe('factory', () => {
         test('invalid type', (done) => {
             const txQueueInstance = new TransactionQueue(dbFactory(dbPath()), null);
@@ -254,19 +267,6 @@ describe('transaction queue', () => {
         });
     });
     describe('processors - NATION_CREATE', () => {
-        const nationData = {
-            nationName: 'Bitnation',
-            nationDescription: 'We <3 cryptography',
-            exists: true,
-            virtualNation: false,
-            nationCode: 'Code civil',
-            lawEnforcementMechanism: 'xyz',
-            profit: true,
-            nonCitizenUse: false,
-            diplomaticRecognition: false,
-            decisionMakingProcess: 'dictatorship',
-            governanceService: 'Security',
-        };
         test(`Try to process nation without a job`, (done) => {
             const db = dbFactory(dbPath());
             const ee = new EventEmitter();
@@ -370,10 +370,12 @@ describe('transaction queue', () => {
             txQueue
                 ._processors['NATION_JOIN'](true, {nation: null})
                 .then((result) => {
-                    expect(result).toBe('There is no nation present on the job object');
-                    done();
+                    done.fail(`Expected to be reject`);
                 })
-                .catch(done.fail);
+                .catch((e) => {
+                    expect(e).toBe('There is no nation present on the job object');
+                    done();
+                });
         });
         test('join successfully', (done) => {
             const db = dbFactory(dbPath());
