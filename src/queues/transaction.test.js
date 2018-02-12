@@ -360,4 +360,20 @@ describe('transaction queue', () => {
                 });
         });
     });
+    describe('processor - NATION_JOIN', () => {
+        test('no nation present in job', (done) => {
+            const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
+
+            const txQueue = new TransactionQueue(db, ee, null, null);
+
+            txQueue
+                ._processors['NATION_JOIN'](true, {nation: null})
+                .then((result) => {
+                    expect(result).toBe('There is no nation present on the job object');
+                    done();
+                })
+                .catch(done.fail);
+        });
+    });
 });
