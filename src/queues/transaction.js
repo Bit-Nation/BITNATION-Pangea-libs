@@ -56,7 +56,6 @@ export default class TransactionQueue implements TransactionQueueInterface {
                         ._db
                         .write((realm) => {
                             // $FlowFixMe WE check above if the nation exist. So no reason to complain.
-                            nation.joined = txSuccess;
                             if (txSuccess === true) {
                                 job.status = TX_JOB_STATUS_SUCCESS;
                             } else {

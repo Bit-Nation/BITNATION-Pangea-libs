@@ -310,7 +310,7 @@ describe('transaction queue', () => {
                             expect(msg._heading).toBe('nation.heading');
                             expect(msg._display).toBeTruthy();
 
-                            expect(nation.joined).toBeTruthy();
+                            expect(nation.joined).toBeFalsy();
 
                             expect(nation.tx.txHash).toBe('0x3b45d7e69eb85a18769ae79790879aa883b1732dd2fcd82ef5f561ad9db73fd9');
                             expect(nation.tx.status).toBe(300);
