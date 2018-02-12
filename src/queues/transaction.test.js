@@ -454,4 +454,22 @@ describe('transaction queue', () => {
                 .catch(done.fail);
         });
     });
+    describe('processor - NATION_LEAVE', () => {
+        test('no nation present in job', (done) => {
+            const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
+
+            const txQueue = new TransactionQueue(db, ee, null, null);
+
+            txQueue
+                ._processors['NATION_LEAVE'](true, {nation: null})
+                .then((result) => {
+                    done.fail(`Expected to be reject`);
+                })
+                .catch((e) => {
+                    expect(e).toBe('There is no nation present on the job object');
+                    done();
+                });
+        });
+    });
 });
