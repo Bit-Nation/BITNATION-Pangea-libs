@@ -403,7 +403,9 @@ describe('transaction queue', () => {
                             expect(msg._msg).toBe('nation.join.success');
                             expect(msg._display).toBeTruthy();
 
-                            expect(nation.tx).toBeNull();
+                            expect(nation.tx.txHash).toBe('0x3b45d7e69eb85a18769ae79790879aa883b1732dd2fcd82ef5f561ad9db73fd9');
+                            expect(nation.tx.status).toBe(300);
+                            expect(nation.tx.type).toBe(TX_JOB_TYPE_NATION_JOIN);
 
                             done();
                         })
@@ -438,7 +440,10 @@ describe('transaction queue', () => {
                             expect(msg._interpret).toBeTruthy();
                             expect(msg._msg).toBe('nation.join.failed');
                             expect(msg._display).toBeTruthy();
-                            expect(nation.tx).toBeNull();
+
+                            expect(nation.tx.txHash).toBe('0x934a702acbaeb30b29d8d4bc12bbef7530e9c904ba55ab050e608b96f077585f');
+                            expect(nation.tx.status).toBe(400);
+                            expect(nation.tx.type).toBe(TX_JOB_TYPE_NATION_JOIN);
 
                             done();
                         })
