@@ -1,8 +1,9 @@
 // @flow
 
-import type {NationType} from '../database/schemata';
+import type {NationType, TransactionJobType} from '../database/schemata';
 import type {DBInterface} from '../database/db';
 import type {TransactionQueueInterface} from '../queues/transaction';
+import {TX_JOB_TYPE_NATION_CREATE} from '../queues/transaction';
 const Web3 = require('web3');
 const EventEmitter = require('eventemitter3');
 const eachSeries = require('async/eachSeries');
@@ -308,9 +309,12 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                                 });
                             }
 
-                            // Attach transaction hash to nation
-                            db
-                                .write((_) => nation.txHash = txHash)
+                            // Attach transaction to nation
+                            txQueue
+                                .jobFactory(txHash, TX_JOB_TYPE_NATION_CREATE)
+                                .then((txJob: TransactionJobType) => db.write((realm) => {
+                                    nation.tx = txJob;
+                                }))
                                 .then((_) => res({
                                     transKey: 'nation.submit_success',
                                     nation: nation,
