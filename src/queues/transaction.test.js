@@ -509,5 +509,43 @@ describe('transaction queue', () => {
                 })
                 .catch(done.fail);
         });
+        test('leave failed', () => {
+            const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
+
+            const txQueue = new TransactionQueue(db, ee, null, null);
+
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {
+                    id: 1,
+                    created: false,
+                    tx: {
+                        txHash: '0x934a702acbaeb30b29d8d4bc12bbef7530e9c904ba55ab050e608b96f077585f',
+                        status: TX_JOB_STATUS_PENDING,
+                        type: TX_JOB_TYPE_NATION_LEAVE,
+                    },
+                })))
+                .then((nation) => {
+                    txQueue
+                        ._processors['NATION_LEAVE'](false, nation.tx)
+                        .then((msg:Msg) => {
+                            expect(msg._heading).toBe('nation.heading');
+                            expect(msg._params).toEqual({
+                                nationName: 'Bitnation',
+                            });
+                            expect(msg._interpret).toBeTruthy();
+                            expect(msg._msg).toBe('nation.leave.failed');
+                            expect(msg._display).toBeTruthy();
+
+                            expect(nation.tx.txHash).toBe('0x934a702acbaeb30b29d8d4bc12bbef7530e9c904ba55ab050e608b96f077585f');
+                            expect(nation.tx.status).toBe(400);
+                            expect(nation.tx.type).toBe(TX_JOB_TYPE_NATION_LEAVE);
+
+                            done();
+                        })
+                        .catch(done.fail);
+                })
+                .catch(done.fail);
+        });
     });
 });
