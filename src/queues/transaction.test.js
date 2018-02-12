@@ -573,5 +573,29 @@ describe('transaction queue', () => {
                 })
                 .catch();
         });
+        test('tx failed', () => {
+            const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
+
+            const txQueue = new TransactionQueue(db, ee, null, null);
+
+            txQueue
+                .saveJob(txQueue.jobFactory('0xb1f058b50c4f34cf6fd9ad87eaa4355901bbc82598bcd8520107ec47986877eb', TX_JOB_TYPE_ETH_SEND))
+                .then((job) => {
+                    txQueue._processors['ETH_SEND'](false, job)
+                        .then((msg) => {
+                            expect(msg._heading).toBe('transaction.heading');
+                            expect(msg._params).toEqual({
+                                nationName: 'Bitnation',
+                            });
+                            expect(msg._interpret).toBeTruthy();
+                            expect(msg._msg).toBe('nation.transaction.failed');
+                            expect(msg._display).toBeTruthy();
+                            done();
+                        })
+                        .catch(done.fail);
+                })
+                .catch();
+        });
     });
 });
