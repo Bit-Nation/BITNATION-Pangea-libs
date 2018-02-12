@@ -20,7 +20,7 @@ export class Msg {
      * @param {string} params
      * @param {string} interpret
      */
-    constructor(msg: string, params: {...mixed}, interpret: boolean) {
+    constructor(msg: string, params: ?{...mixed}, interpret: ?boolean) {
         this._msg = msg;
         this._params = params || {};
         this._interpret = true;
