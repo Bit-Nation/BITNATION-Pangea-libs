@@ -16,6 +16,9 @@ import {
     NATION_JOIN_FAILED,
     NATION_LEAVE_FAILED,
     NATION_LEAVE_SUCCEED,
+    TRANSACTION_FAILED,
+    TRANSACTION_HEADING,
+    TRANSACTION_SUCCEED,
 } from '../transKeys';
 
 /**
@@ -152,6 +155,34 @@ export default class TransactionQueue implements TransactionQueueInterface {
                         })
                         .catch();
                 }
+            });
+        },
+        'ETH_SEND': (txSuccess: boolean, job: TransactionJobType): Promise<Msg | null> => {
+            return new Promise((res, rej) => {
+                this._web3.eth.getTransaction(job.txHash, (err, txData) => {
+                    if (err) {
+                        return rej(err);
+                    }
+
+                    const value = this._web3.fromWei(txData.value, 'ether').toString();
+
+                    const params = {
+                        from: txData.from,
+                        to: txData.to,
+                        value: value,
+                        txHash: job.txHash,
+                    };
+
+                    let msg = new Msg(TRANSACTION_FAILED, params);
+
+                    if (txSuccess === true) {
+                        msg = new Msg(TRANSACTION_SUCCEED, params);
+                    }
+
+                    msg.display(TRANSACTION_HEADING);
+
+                    res(msg);
+                });
             });
         },
     };
