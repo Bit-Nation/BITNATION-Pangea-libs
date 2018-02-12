@@ -6,7 +6,12 @@ import type {TransactionJobType} from '../database/schemata';
 import {TRANSACTION_QUEUE_JOB_ADDED, TRANSACTION_QUEUE_FINISHED_CYCLE} from '../events';
 import dbFactory from '../database/db';
 const EventEmitter = require('eventemitter3');
+const BigNumber = require('bignumber.js');
+const Web3 = require('web3');
 const dbPath = () => 'database/'+Math.random();
+
+// Utils instance of web3 to ac
+const web3 = new Web3();
 
 describe('transaction queue', () => {
     const nationData = {
@@ -553,7 +558,25 @@ describe('transaction queue', () => {
             const db = dbFactory(dbPath());
             const ee = new EventEmitter();
 
-            const txQueue = new TransactionQueue(db, ee, null, null);
+            const web3Mock = {
+                eth: {
+                    getTransaction(txHash, cb) {
+                        expect(txHash).toBe('0xb1f058b50c4f34cf6fd9ad87eaa4355901bbc82598bcd8520107ec47986877eb');
+
+                        // Mock response data from web3 call
+                        const txData = {
+                            from: '0xab9cf604f9737524fc19483f742a69c7f2cd8924',
+                            to: '0x39aca8ee6fe736dea7ace3fcbf727705c7ddfa49',
+                            value: new BigNumber('1755065730000000000'),
+                        };
+
+                        cb(null, txData);
+                    },
+                },
+                fromWei: web3.fromWei,
+            };
+
+            const txQueue = new TransactionQueue(db, ee, web3Mock, null);
 
             txQueue
                 .jobFactory('0xb1f058b50c4f34cf6fd9ad87eaa4355901bbc82598bcd8520107ec47986877eb', TX_JOB_TYPE_ETH_SEND)
@@ -561,10 +584,13 @@ describe('transaction queue', () => {
                 .then((msg) => {
                     expect(msg._heading).toBe('transaction.heading');
                     expect(msg._params).toEqual({
-                        nationName: 'Bitnation',
+                        from: '0xab9cf604f9737524fc19483f742a69c7f2cd8924',
+                        to: '0x39aca8ee6fe736dea7ace3fcbf727705c7ddfa49',
+                        value: '1.75506573',
+                        txHash: '0xb1f058b50c4f34cf6fd9ad87eaa4355901bbc82598bcd8520107ec47986877eb',
                     });
                     expect(msg._interpret).toBeTruthy();
-                    expect(msg._msg).toBe('nation.transaction.succeed');
+                    expect(msg._msg).toBe('transaction.succeed');
                     expect(msg._display).toBeTruthy();
                     done();
                 })
@@ -574,7 +600,25 @@ describe('transaction queue', () => {
             const db = dbFactory(dbPath());
             const ee = new EventEmitter();
 
-            const txQueue = new TransactionQueue(db, ee, null, null);
+            const web3Mock = {
+                eth: {
+                    getTransaction(txHash, cb) {
+                        expect(txHash).toBe('0xb1f058b50c4f34cf6fd9ad87eaa4355901bbc82598bcd8520107ec47986877eb');
+
+                        // Mock response data from web3 call
+                        const txData = {
+                            from: '0xab9cf604f9737524fc19483f742a69c7f2cd8924',
+                            to: '0x39aca8ee6fe736dea7ace3fcbf727705c7ddfa49',
+                            value: new BigNumber('1755065730000000000'),
+                        };
+
+                        cb(null, txData);
+                    },
+                },
+                fromWei: web3.fromWei,
+            };
+
+            const txQueue = new TransactionQueue(db, ee, web3Mock, null);
 
             txQueue
                 .jobFactory('0xb1f058b50c4f34cf6fd9ad87eaa4355901bbc82598bcd8520107ec47986877eb', TX_JOB_TYPE_ETH_SEND)
@@ -582,10 +626,13 @@ describe('transaction queue', () => {
                 .then((msg) => {
                     expect(msg._heading).toBe('transaction.heading');
                     expect(msg._params).toEqual({
-                        nationName: 'Bitnation',
+                        from: '0xab9cf604f9737524fc19483f742a69c7f2cd8924',
+                        to: '0x39aca8ee6fe736dea7ace3fcbf727705c7ddfa49',
+                        value: '1.75506573',
+                        txHash: '0xb1f058b50c4f34cf6fd9ad87eaa4355901bbc82598bcd8520107ec47986877eb',
                     });
                     expect(msg._interpret).toBeTruthy();
-                    expect(msg._msg).toBe('nation.transaction.failed');
+                    expect(msg._msg).toBe('transaction.failed');
                     expect(msg._display).toBeTruthy();
                     done();
                 })
