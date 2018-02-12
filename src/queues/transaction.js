@@ -174,7 +174,7 @@ export default class TransactionQueue implements TransactionQueueInterface {
      *
      * @param txHash
      * @param type
-     * @return {Promise<any>}
+     * @return {Promise<TransactionJobType>}
      */
     jobFactory(txHash: string, type: string): Promise<TransactionJobType> {
         return new Promise((res, rej) => {
