@@ -395,14 +395,14 @@ describe('transaction queue', () => {
                 })))
                 .then((nation) => {
                     txQueue
-                        ._processors['NATION_JOIN'](true, {nation: nation.tx})
+                        ._processors['NATION_JOIN'](true, nation.tx)
                         .then((msg:Msg) => {
-                            expect(msg._heading).toBe('nation.join.heading.success');
-                            expect(msg._params).toBe({
+                            expect(msg._heading).toBe('nation.heading');
+                            expect(msg._params).toEqual({
                                 nationName: 'Bitnation',
                             });
                             expect(msg._interpret).toBeTruthy();
-                            expect(msg._msg).toBe('nation.join.success');
+                            expect(msg._msg).toBe('nation.join.succeed');
                             expect(msg._display).toBeTruthy();
 
                             expect(nation.tx.txHash).toBe('0x3b45d7e69eb85a18769ae79790879aa883b1732dd2fcd82ef5f561ad9db73fd9');
@@ -433,10 +433,10 @@ describe('transaction queue', () => {
                 })))
                 .then((nation) => {
                     txQueue
-                        ._processors['NATION_JOIN'](true, {nation: nation.tx})
+                        ._processors['NATION_JOIN'](false, nation.tx)
                         .then((msg:Msg) => {
-                            expect(msg._heading).toBe('nation.join.heading.failed');
-                            expect(msg._params).toBe({
+                            expect(msg._heading).toBe('nation.heading');
+                            expect(msg._params).toEqual({
                                 nationName: 'Bitnation',
                             });
                             expect(msg._interpret).toBeTruthy();
