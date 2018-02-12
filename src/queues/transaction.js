@@ -23,7 +23,7 @@ import {
  */
 export interface TransactionQueueInterface {
     jobFactory(txHash: string, type: string) : Promise<TransactionJobType>,
-    saveJob(job: TransactionJobType) : Promise<void>
+    saveJob(job: TransactionJobType) : Promise<TransactionJobType>
 }
 
 export const TX_JOB_TYPE_NATION_CREATE = 'NATION_CREATE';
@@ -253,16 +253,16 @@ export default class TransactionQueue implements TransactionQueueInterface {
     /**
      *
      * @param job
-     * @return {Promise<any>}
+     * @return {Promise<TransactionJobType>}
      */
-    saveJob(job: TransactionJobType): Promise<void> {
+    saveJob(job: TransactionJobType): Promise<TransactionJobType> {
         return new Promise((res, rej) => {
             this._db
                 .write((realm) => realm.create('TransactionJob', job))
                 .then((job: TransactionJobType) => {
                     this._ee.emit(TRANSACTION_QUEUE_JOB_ADDED, job);
                     this._jobStack.push(job);
-                    res();
+                    res(job);
                 })
                 .catch(rej);
         });
