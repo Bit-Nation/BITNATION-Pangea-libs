@@ -548,8 +548,8 @@ describe('transaction queue', () => {
                 .catch(done.fail);
         });
     });
-    describe('processor - ETH_SEND', (done) => {
-        test('tx success', () => {
+    describe('processor - ETH_SEND', () => {
+        test('tx success', (done) => {
             const db = dbFactory(dbPath());
             const ee = new EventEmitter();
 
@@ -573,7 +573,7 @@ describe('transaction queue', () => {
                 })
                 .catch();
         });
-        test('tx failed', () => {
+        test('tx failed', (done) => {
             const db = dbFactory(dbPath());
             const ee = new EventEmitter();
 
