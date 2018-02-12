@@ -1,6 +1,6 @@
 import TransactionQueue, {
     TX_JOB_TYPE_NATION_JOIN, Msg, TX_JOB_TYPE_NATION_CREATE,
-    TX_JOB_STATUS_PENDING, TX_JOB_TYPE_NATION_LEAVE,
+    TX_JOB_STATUS_PENDING, TX_JOB_TYPE_NATION_LEAVE, TX_JOB_TYPE_ETH_SEND,
 } from './transaction';
 import type {TransactionJobType} from '../database/schemata';
 import {TRANSACTION_QUEUE_JOB_ADDED, TRANSACTION_QUEUE_FINISHED_CYCLE} from '../events';
@@ -546,6 +546,32 @@ describe('transaction queue', () => {
                         .catch(done.fail);
                 })
                 .catch(done.fail);
+        });
+    });
+    describe('processor - ETH_SEND', (done) => {
+        test('tx success', () => {
+            const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
+
+            const txQueue = new TransactionQueue(db, ee, null, null);
+
+            txQueue
+                .saveJob(txQueue.jobFactory('0xb1f058b50c4f34cf6fd9ad87eaa4355901bbc82598bcd8520107ec47986877eb', TX_JOB_TYPE_ETH_SEND))
+                .then((job) => {
+                    txQueue._processors['ETH_SEND'](true, job)
+                        .then((msg) => {
+                            expect(msg._heading).toBe('transaction.heading');
+                            expect(msg._params).toEqual({
+                                nationName: 'Bitnation',
+                            });
+                            expect(msg._interpret).toBeTruthy();
+                            expect(msg._msg).toBe('nation.transaction.succeed');
+                            expect(msg._display).toBeTruthy();
+                            done();
+                        })
+                        .catch(done.fail);
+                })
+                .catch();
         });
     });
 });
