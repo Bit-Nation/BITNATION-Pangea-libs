@@ -411,5 +411,40 @@ describe('transaction queue', () => {
                 })
                 .catch(done.fail);
         });
+        test('transaction fail', (done) => {
+            const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
+
+            const txQueue = new TransactionQueue(db, ee, null, null);
+
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {
+                    id: 1,
+                    created: false,
+                    tx: {
+                        txHash: '0x934a702acbaeb30b29d8d4bc12bbef7530e9c904ba55ab050e608b96f077585f',
+                        status: TX_JOB_STATUS_PENDING,
+                        type: TX_JOB_TYPE_NATION_JOIN,
+                    },
+                })))
+                .then((nation) => {
+                    txQueue
+                        ._processors['NATION_JOIN'](true, {nation: nation.tx})
+                        .then((msg:Msg) => {
+                            expect(msg._heading).toBe('nation.join.heading.failed');
+                            expect(msg._params).toBe({
+                                nationName: 'Bitnation',
+                            });
+                            expect(msg._interpret).toBeTruthy();
+                            expect(msg._msg).toBe('nation.join.failed');
+                            expect(msg._display).toBeTruthy();
+                            expect(nation.tx).toBeNull();
+
+                            done();
+                        })
+                        .catch(done.fail);
+                })
+                .catch(done.fail);
+        });
     });
 });
