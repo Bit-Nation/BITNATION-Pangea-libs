@@ -147,23 +147,23 @@ export const TransactionJobSchema = {
 
 /**
  * @typedef NationType
- * @property {number} id
- * @property {number} idInSmartContract
- * @property {boolean} created Created mean's if it is on the blockchain
- * @property {string} nationName
- * @property {string} nationDescription
- * @property {boolean} exists
- * @property {boolean} virtualNation
- * @property {string} nationCode
+ * @property {number} id internal id of the dataset
+ * @property {number} idInSmartContract is the id in the nation smart contract. If not this will be -1.
+ * @property {boolean} created mean's if it is written to the blockchain (@todo this is probably an redundant field since you can get this information from "idInSmartContract")
+ * @property {string} nationName human readable name of the nation
+ * @property {string} nationDescription human readable description of the nation
+ * @property {boolean} exists Does the nation already exists?
+ * @property {boolean} virtualNation Is it a virtual nation?
+ * @property {string} nationCode The nation code of law.
  * @property {string} lawEnforcementMechanism
- * @property {boolean} profit
- * @property {boolean} nonCitizenUse
+ * @property {boolean} profit Is this nation a for profit use?
+ * @property {boolean} nonCitizenUse Can non citizens use the services?
  * @property {boolean} diplomaticRecognition
  * @property {string} decisionMakingProcess
  * @property {string} governanceService
- * @property {number} citizens
- * @property {boolean} joined
- * @property {TransactionJobType | null} tx
+ * @property {number} citizens Number of citizens
+ * @property {boolean} joined Did I join the nation?
+ * @property {TransactionJobType | null} tx A transaction. It can be e.g. a transaction that is responsible for writing the nation to the blockchain.
  */
 export type NationType = {
     id: number,
