@@ -355,6 +355,20 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                 .then((_) => res({transKey: 'nation.draft.deleted'}))
                 .catch((_) => res({transKey: 'system_error.db_write_failed'}));
         }),
+        /**
+         * @desc Create's the label for the nation
+         */
+        label: (nation: NationType) : string => {
+            if (nation.tx) {
+                return `${nation.tx[0].type}_${nation.tx[0].status}`;
+            }
+
+            if (nation.draft) {
+                return 'nation.label.draft';
+            }
+
+            return '';
+        },
     };
 
     return impl;
