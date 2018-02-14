@@ -8,3 +8,4 @@ export const NATION_CREATE_FAILED = 'nation.create.failed';
 export const TRANSACTION_FAILED = 'transaction.failed';
 export const TRANSACTION_SUCCEED = 'transaction.succeed';
 export const TRANSACTION_HEADING = 'transaction.heading';
+export const NATION_STATE_MUTATE_NOT_POSSIBLE = 'nation.state_mutate_not_possible';
