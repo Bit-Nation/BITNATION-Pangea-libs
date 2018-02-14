@@ -3,7 +3,12 @@
 import type {NationType, TransactionJobType} from '../database/schemata';
 import type {DBInterface} from '../database/db';
 import type {TransactionQueueInterface} from '../queues/transaction';
-import {TX_JOB_TYPE_NATION_CREATE} from '../queues/transaction';
+import {
+    TX_JOB_TYPE_NATION_CREATE,
+    TX_JOB_TYPE_NATION_JOIN,
+    TX_JOB_TYPE_NATION_LEAVE,
+} from '../queues/transaction';
+import {NATION_STATE_MUTATE_NOT_POSSIBLE} from '../transKeys';
 const Web3 = require('web3');
 const EventEmitter = require('eventemitter3');
 const eachSeries = require('async/eachSeries');
@@ -46,7 +51,7 @@ export type NationInputType = {
 export interface NationInterface {
     all() : Promise<NationType>,
     index() : Promise<void>,
-    joinNation(id: number) : Promise<void>,
+    joinNation(id: NationType) : Promise<void>,
     leaveNation(id: number) : Promise<void>,
     saveDraft(nation: NationInputType) : Promise<{transKey: string, nation: NationType}>,
     updateDraft(nationId: number, nation: NationInputType) : Promise<{transKey: string, nation: NationType}>,
@@ -251,13 +256,31 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                 );
             });
         }),
-        joinNation: (id: number): Promise<void> => new Promise((res, rej) => {
-            nationContract.joinNation(id, function(err, txHash) {
+        /**
+         * @param {NationType} nation The nation you would like to join
+         * @return {Promise<void>}
+         */
+        joinNation: (nation: NationType): Promise<void> => new Promise((res, rej) => {
+            if (!nation.stateMutateAllowed) {
+                rej({
+                    transKey: NATION_STATE_MUTATE_NOT_POSSIBLE,
+                });
+            }
+
+            nationContract.joinNation(nation.idInSmartContract, function(err, txHash) {
                 if (err) {
                     return rej(err);
                 }
 
-                res();
+                txQueue
+                    .jobFactory(txHash, TX_JOB_TYPE_NATION_JOIN)
+                    .then((job: TransactionJobType) => db.write((_) => {
+                        nation.tx = job;
+                        return job;
+                    }))
+                    .then((job: TransactionJobType) => txQueue.saveJob(job))
+                    .then((_) => res())
+                    .catch(rej);
             });
         }),
         leaveNation: (id: number): Promise<void> => new Promise((res, rej) => {

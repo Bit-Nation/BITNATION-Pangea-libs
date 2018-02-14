@@ -9,6 +9,19 @@ const Web3 = require('web3');
 const randomPath = () => 'database/'+Math.random();
 
 describe('nation', () => {
+    const nationData = {
+        nationName: 'Bitnation',
+        nationDescription: 'We <3 cryptography',
+        exists: true,
+        virtualNation: false,
+        nationCode: 'Code civil',
+        lawEnforcementMechanism: 'xyz',
+        profit: true,
+        nonCitizenUse: false,
+        diplomaticRecognition: false,
+        decisionMakingProcess: 'dictatorship',
+        governanceService: 'Security',
+    };
     test('nations', (done) => {
         const txQueue = {
             addJob: () => new Promise((res, rej) => res()),
@@ -31,20 +44,6 @@ describe('nation', () => {
         web3.eth.defaultAccount = '0x85c725a18b09907e874229fcaf36f4e16792214d';
 
         const nations = nationsFactory(dbFactory(randomPath()), txQueue, web3, ee, nationContractMock);
-
-        const nationData = {
-            nationName: 'Bitnation',
-            nationDescription: 'We <3 cryptography',
-            exists: true,
-            virtualNation: false,
-            nationCode: 'Code civil',
-            lawEnforcementMechanism: 'xyz',
-            profit: true,
-            nonCitizenUse: false,
-            diplomaticRecognition: false,
-            decisionMakingProcess: 'dictatorship',
-            governanceService: 'Security',
-        };
 
         nations
             .saveDraft(nationData)
@@ -72,30 +71,47 @@ describe('nation', () => {
             const nationContractMock = {
                 joinNation: jest.fn(function(nationId, cb) {
                     expect(nationId).toEqual(4);
-                    cb();
+                    cb(null, '0x614d71dec834787a24ad0e2b1d465188a13efa189338216c7f56fef0f8053b2f');
                 }),
             };
 
             const web3 = new Web3(new Web3.providers.HttpProvider('https://rinkeby.infura.io/d'));
             web3.eth.defaultAccount = '0x85c725a18b09907e874229fcaf36f4e16792214d';
 
-            const nations = nationsFactory(null, null, null, null, nationContractMock);
+            const db = dbFactory(randomPath());
 
-            nations
-                .joinNation(4)
-                .then((_) => {
-                    expect(_).toBeUndefined();
-                    done();
+            const txQueue = new TxQueue(db, new EventEmitter());
+
+            const nations = nationsFactory(db, txQueue, null, null, nationContractMock);
+
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {id: 1, idInSmartContract: 4, stateMutateAllowed: true, created: false})))
+                .then((nation) => {
+                    expect(nation.tx).toBeNull();
+                    nations
+                        .joinNation(nation)
+                        .then((_) => {
+                            expect(nation.tx.txHash).toBe('0x614d71dec834787a24ad0e2b1d465188a13efa189338216c7f56fef0f8053b2f');
+                            expect(nation.tx.type).toBe('NATION_JOIN');
+                            expect(nation.tx.status).toBe(200);
+
+                            return db.query((realm) => realm.objects('TransactionJob'));
+                        })
+                        .then((jobs) => {
+                            expect(jobs[0].txHash).toBe('0x614d71dec834787a24ad0e2b1d465188a13efa189338216c7f56fef0f8053b2f');
+                            expect(jobs[0].type).toBe('NATION_JOIN');
+                            expect(jobs[0].status).toBe(200);
+
+                            done();
+                        })
+                        .catch(done.fail);
                 })
                 .catch(done.fail);
         });
-
-        test('fail', (done) => {
+        test('fail web3 error', (done) => {
             const nationContractMock = {
                 joinNation: jest.fn(function(nationId, cb) {
-                    expect(nationId).toEqual(4);
                     cb('i_am_a_error');
-                    done();
                 }),
             };
 
@@ -105,7 +121,7 @@ describe('nation', () => {
             const nations = nationsFactory(null, null, null, null, nationContractMock);
 
             nations
-                .joinNation(4)
+                .joinNation({stateMutateAllowed: true})
                 .then((_) => {
                     done.fail('should be rejected');
                 })
