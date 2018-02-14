@@ -108,6 +108,19 @@ describe('nation', () => {
                 })
                 .catch(done.fail);
         });
+        test('state mutate not allowed', (done) => {
+            const nations = nationsFactory();
+
+            nations
+                .joinNation({})
+                .then(done.fail)
+                .catch((e) => {
+                    expect(e).toEqual({
+                        transKey: 'nation.state_mutate_not_possible',
+                    });
+                    done();
+                });
+        });
         test('fail web3 error', (done) => {
             const nationContractMock = {
                 joinNation: jest.fn(function(nationId, cb) {
@@ -173,6 +186,19 @@ describe('nation', () => {
                         .catch(done.fail);
                 })
                 .catch(done.fail);
+        });
+        test('state mutate not allowed', (done) => {
+            const nations = nationsFactory();
+
+            nations
+                .leaveNation({})
+                .then(done.fail)
+                .catch((e) => {
+                    expect(e).toEqual({
+                        transKey: 'nation.state_mutate_not_possible',
+                    });
+                    done();
+                });
         });
         test('fail - web3 error', (done) => {
             const nationContractMock = {
