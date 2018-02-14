@@ -507,6 +507,41 @@ describe('nation', () => {
                 .catch(done.fail);
         });
     });
+    test('error on try to submit if stateMutateAllowed is false', (done) => {
+        const nationData = {
+            nationName: 'Bitnation',
+            nationDescription: 'We <3 cryptography',
+            exists: true,
+            virtualNation: false,
+            nationCode: 'Code civil',
+            lawEnforcementMechanism: 'xyz',
+            profit: true,
+            nonCitizenUse: false,
+            diplomaticRecognition: false,
+            decisionMakingProcess: 'dictatorship',
+            governanceService: 'Security',
+            stateMutateAllowed: false,
+            id: 1,
+            created: false,
+        };
+
+        const db = dbFactory(randomPath());
+
+        const nationService = nationsFactory(db, new TxQueue(db));
+
+        db
+            .write((realm) => realm.create('Nation', nationData))
+            .then((_) => nationService.submitDraft(1))
+            .then((_) => {
+                done.fail('I expect saveDraft to reject since stateMutateAllowed = false');
+            })
+            .catch((e) => {
+                expect(e).toEqual({
+                    transKey: 'nation.state_mutate_not_possible',
+                });
+                done();
+            });
+    });
     describe('saveAndSubmit', () => {
         test('success', (done) => {
             const db = dbFactory(randomPath());

@@ -316,6 +316,12 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                         return rej('system_error.nation.does_not_exist');
                     }
 
+                    if (!nations[0].stateMutateAllowed) {
+                        return rej({
+                            transKey: NATION_STATE_MUTATE_NOT_POSSIBLE,
+                        });
+                    }
+
                     // it in smart contract is only >= 0 when the nation was written to the blockchain
                     // @todo we really really need to check for if the nation was already submitted. But we need to have the tx queue thing.
                     if (nations[0].idInSmartContract >= 0) {
@@ -365,11 +371,7 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                         }
                     );
                 })
-                .catch((error) => {
-                    console.log(error);
-                    // @todo report error in future
-                    rej('system_error.db_query_failed');
-                });
+                .catch(rej);
         }),
         saveAndSubmit: (nationData: NationInputType): Promise<{transKey: string, nation: NationType}> => new Promise((res, rej) => {
             impl
