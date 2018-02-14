@@ -276,6 +276,7 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                     .jobFactory(txHash, TX_JOB_TYPE_NATION_JOIN)
                     .then((job: TransactionJobType) => db.write((_) => {
                         nation.tx = job;
+                        nation.stateMutateAllowed = false;
                         return job;
                     }))
                     .then((job: TransactionJobType) => txQueue.saveJob(job))
@@ -299,6 +300,7 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                     .jobFactory(txHash, TX_JOB_TYPE_NATION_LEAVE)
                     .then((job: TransactionJobType) => db.write((_) => {
                         nation.tx = job;
+                        nation.stateMutateAllowed = false;
                         return job;
                     }))
                     .then((job: TransactionJobType) => txQueue.saveJob(job))

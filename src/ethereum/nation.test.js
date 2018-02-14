@@ -94,6 +94,7 @@ describe('nation', () => {
                             expect(nation.tx.txHash).toBe('0x614d71dec834787a24ad0e2b1d465188a13efa189338216c7f56fef0f8053b2f');
                             expect(nation.tx.type).toBe('NATION_JOIN');
                             expect(nation.tx.status).toBe(200);
+                            expect(nation.stateMutateAllowed).toBeFalsy();
 
                             return db.query((realm) => realm.objects('TransactionJob'));
                         })
@@ -173,6 +174,7 @@ describe('nation', () => {
                             expect(nation.tx.txHash).toBe('0x614d71dec834787a24ad0e2b1d465188a13efa189338216c7f56fef0f8053b2f');
                             expect(nation.tx.type).toBe('NATION_LEAVE');
                             expect(nation.tx.status).toBe(200);
+                            expect(nation.stateMutateAllowed).toBeFalsy();
 
                             return db.query((realm) => realm.objects('TransactionJob'));
                         })
