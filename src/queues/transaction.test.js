@@ -1,7 +1,9 @@
 import TransactionQueue, {
     TX_JOB_TYPE_NATION_JOIN, Msg, TX_JOB_TYPE_NATION_CREATE,
     TX_JOB_STATUS_PENDING, TX_JOB_TYPE_NATION_LEAVE, TX_JOB_TYPE_ETH_SEND,
+    TX_JOB_STATUS_SUCCESS,
 } from './transaction';
+import msgQueueFactory from './messaging';
 import type {TransactionJobType} from '../database/schemata';
 import {TRANSACTION_QUEUE_JOB_ADDED, TRANSACTION_QUEUE_FINISHED_CYCLE} from '../events';
 import dbFactory from '../database/db';
@@ -112,7 +114,42 @@ describe('transaction queue', () => {
                 .catch(done.fail);
         });
     });
-    describe('transactionProcessor', () => {
+    describe('processTransaction', () => {
+        test('set resetStateMutateAllowed of nation to false if job is responsible for processing a nation', (done) => {
+            const db = dbFactory(dbPath());
+
+            const web3Mock = {
+                eth: {
+                    getTransactionReceipt: jest.fn((txHash, cb) => {
+                        expect(txHash).toBe('0x695e286ad66da4d21aadcc588bf5b92ea29839813dd392915b204eb9426c4294');
+                        cb(null, {status: '0x1'});
+                    }),
+                },
+            };
+
+            const txQueueInstance = new TransactionQueue(db, new EventEmitter(), web3Mock, msgQueueFactory(new EventEmitter(), db));
+
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {id: 1, created: false}, {
+                    tx: {
+                        txHash: '0x695e286ad66da4d21aadcc588bf5b92ea29839813dd392915b204eb9426c4294',
+                        type: TX_JOB_TYPE_NATION_CREATE,
+                        status: TX_JOB_STATUS_SUCCESS,
+                    },
+                })))
+                .then((nation) => {
+                    expect(nation.stateMutateAllowed).toBeTruthy();
+
+                    txQueueInstance
+                        .processTransaction(nation.tx, txQueueInstance._processors[nation.tx.type])
+                        .then((_) => {
+                            expect(nation.stateMutateAllowed).toBeFalsy();
+                            done();
+                        })
+                        .catch();
+                })
+                .catch(done.fail);
+        });
         test('web3 error', (done) => {
             const db = dbFactory(dbPath());
 
