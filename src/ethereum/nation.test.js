@@ -344,6 +344,8 @@ describe('nation', () => {
                         idInSmartContract: -1,
                         joined: false,
                         tx: null,
+                        resetStateMutateAllowed: false,
+                        stateMutateAllowed: true,
                     });
 
                     nationData.nationName = 'updated nation name';
