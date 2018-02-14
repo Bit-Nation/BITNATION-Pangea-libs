@@ -52,7 +52,7 @@ export interface NationInterface {
     all() : Promise<NationType>,
     index() : Promise<void>,
     joinNation(id: NationType) : Promise<void>,
-    leaveNation(id: number) : Promise<void>,
+    leaveNation(nation: NationType) : Promise<void>,
     saveDraft(nation: NationInputType) : Promise<{transKey: string, nation: NationType}>,
     updateDraft(nationId: number, nation: NationInputType) : Promise<{transKey: string, nation: NationType}>,
     submitDraft(nationId: number) : Promise<{transKey: string, nation: NationType}>,
@@ -283,13 +283,27 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                     .catch(rej);
             });
         }),
-        leaveNation: (id: number): Promise<void> => new Promise((res, rej) => {
-            nationContract.leaveNation(id, function(err, txHash) {
+        leaveNation: (nation: NationType): Promise<void> => new Promise((res, rej) => {
+            if (!nation.stateMutateAllowed) {
+                rej({
+                    transKey: NATION_STATE_MUTATE_NOT_POSSIBLE,
+                });
+            }
+
+            nationContract.leaveNation(nation.idInSmartContract, function(err, txHash) {
                 if (err) {
                     return rej(err);
                 }
 
-                return res();
+                txQueue
+                    .jobFactory(txHash, TX_JOB_TYPE_NATION_LEAVE)
+                    .then((job: TransactionJobType) => db.write((_) => {
+                        nation.tx = job;
+                        return job;
+                    }))
+                    .then((job: TransactionJobType) => txQueue.saveJob(job))
+                    .then((_) => res())
+                    .catch(rej);
             });
         }),
         submitDraft: (nationId: number): Promise<{transKey: string, nation: NationType}> => new Promise((res, rej) => {
