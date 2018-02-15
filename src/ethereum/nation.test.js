@@ -592,6 +592,8 @@ describe('nation', () => {
                     expect(n.id).toBe(1);
                     expect(n.idInSmartContract).toBe(-1);
                     expect(n.joined).toBe(false);
+                    expect(n.stateMutateAllowed).toBeFalsy();
+                    expect(n.resetStateMutateAllowed).toBeFalsy();
 
                     expect(n.tx.txHash).toBe('0xbe26a83c5248034f6c37eefb175c88e2815f5920354e37798a657387fa3b4736');
                     expect(n.tx.type).toBe('NATION_CREATE');

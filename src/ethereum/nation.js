@@ -359,6 +359,7 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                                 .jobFactory(txHash, TX_JOB_TYPE_NATION_CREATE)
                                 .then((txJob: TransactionJobType) => db.write((realm) => {
                                     nation.tx = txJob;
+                                    nation.stateMutateAllowed = false;
                                 }))
                                 .then((_) => res({
                                     transKey: 'nation.submit_success',
