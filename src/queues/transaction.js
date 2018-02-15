@@ -319,21 +319,45 @@ export default class TransactionQueue implements TransactionQueueInterface {
 
                 customProcessor('0x1' === receipt.status, job)
                     .then((result: Msg | null) => {
-                        if (!result) {
-                            return res();
-                        }
+                        waterfall(
+                            [
+                                (cb) => {
+                                    if (!result) {
+                                        return cb();
+                                    }
 
-                        this
-                            ._msgQueue
-                            .addJob(result)
-                            .then((_) => {
-                                // @todo log
-                                res();
-                            })
-                            .catch((_) => {
-                                // @todo log
-                                rej();
-                            });
+                                    this
+                                        ._msgQueue
+                                        .addJob(result)
+                                        .then((_) => {
+                                            // @todo log
+                                            cb();
+                                        })
+                                        .catch(cb);
+                                },
+                                (cb) => {
+                                    const nation = job.nation;
+
+                                    if (nation && nation[0]) {
+                                        this
+                                            ._db
+                                            .write((realm) => {
+                                                nation[0].resetStateMutateAllowed = true;
+                                            })
+                                            .then((_) => cb())
+                                            .catch(cb);
+                                    } else {
+                                        cb();
+                                    }
+                                },
+                            ],
+                            function(error) {
+                                if (error) {
+                                    return rej(error);
+                                }
+                                return res();
+                            }
+                        );
                     });
             });
         });

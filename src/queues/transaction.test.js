@@ -138,12 +138,12 @@ describe('transaction queue', () => {
                     },
                 })))
                 .then((nation) => {
-                    expect(nation.stateMutateAllowed).toBeTruthy();
+                    expect(nation.resetStateMutateAllowed).toBeFalsy();
 
                     txQueueInstance
                         .processTransaction(nation.tx, txQueueInstance._processors[nation.tx.type])
                         .then((_) => {
-                            expect(nation.stateMutateAllowed).toBeFalsy();
+                            expect(nation.resetStateMutateAllowed).toBeTruthy();
                             done();
                         })
                         .catch();
