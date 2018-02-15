@@ -268,6 +268,9 @@ export default class TransactionQueue implements TransactionQueueInterface {
                             .catch(done);
                     }, (err) => {
                         // @todo handle error (maybe log?)
+                        if (err) {
+                            console.log(err);
+                        }
                         this._ee.emit(TRANSACTION_QUEUE_FINISHED_CYCLE);
                         setTimeout(processAction, this._processingTimeout);
                     });

@@ -1,9 +1,9 @@
 import TransactionQueue, {
-    TX_JOB_TYPE_NATION_JOIN, Msg, TX_JOB_TYPE_NATION_CREATE,
+    TX_JOB_TYPE_NATION_JOIN, TX_JOB_TYPE_NATION_CREATE,
     TX_JOB_STATUS_PENDING, TX_JOB_TYPE_NATION_LEAVE, TX_JOB_TYPE_ETH_SEND,
     TX_JOB_STATUS_SUCCESS,
 } from './transaction';
-import msgQueueFactory from './messaging';
+import msgQueueFactory, {Msg} from './messaging';
 import type {TransactionJobType} from '../database/schemata';
 import {TRANSACTION_QUEUE_JOB_ADDED, TRANSACTION_QUEUE_FINISHED_CYCLE} from '../events';
 import dbFactory from '../database/db';
@@ -281,7 +281,7 @@ describe('transaction queue', () => {
             };
 
             const msgQueueMock = {
-
+                addJob: () => new Promise((res, rej) => res()),
             };
 
             const txQueue = new TransactionQueue(db, ee, web3Mock, msgQueueMock);
@@ -291,7 +291,7 @@ describe('transaction queue', () => {
             // Reset the processor since we need an custom for this testing
             txQueue._processors = {
                 'NATION_JOIN': (txSuccess:boolean, job:TransactionJobType) => {
-                    return new Msg('ok');
+                    return new Promise((res, rej) => res(new Msg('ok')));
                 },
             };
 
