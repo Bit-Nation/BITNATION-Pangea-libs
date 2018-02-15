@@ -187,6 +187,10 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                                     .then((nations: Array<NationType>) => {
                                         db
                                             .write((realm) => {
+                                                if (!nations[0]) {
+                                                    return cb();
+                                                }
+
                                                 nations[0].idInSmartContract = log.args.nationId.toNumber();
 
                                                 // There is no need for additional check's since
