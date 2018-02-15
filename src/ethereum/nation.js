@@ -185,12 +185,12 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                                 db
                                     .query((realm) => realm.objects('Nation').filtered(`tx.txHash = "${log.transactionHash}" AND tx.type = "NATION_CREATE"`))
                                     .then((nations: Array<NationType>) => {
+                                        if (!nations[0]) {
+                                            return cb();
+                                        }
+
                                         db
                                             .write((realm) => {
-                                                if (!nations[0]) {
-                                                    return cb();
-                                                }
-
                                                 nations[0].idInSmartContract = log.args.nationId.toNumber();
 
                                                 // There is no need for additional check's since
