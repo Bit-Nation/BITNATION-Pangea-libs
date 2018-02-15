@@ -363,7 +363,8 @@ export default class TransactionQueue implements TransactionQueueInterface {
                                 return res();
                             }
                         );
-                    });
+                    })
+                    .catch(rej);
             });
         });
     }
