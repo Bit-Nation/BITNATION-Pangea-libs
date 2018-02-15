@@ -307,6 +307,11 @@ export default class TransactionQueue implements TransactionQueueInterface {
      */
     processTransaction(job: TransactionJobType, customProcessor: (txSuccess: boolean, job: TransactionJobType) => Promise<Msg | null>): Promise<void> {
         return new Promise((res, rej) => {
+            // We need to process pending job's
+            if (job.status !== TX_JOB_STATUS_PENDING) {
+                return res();
+            }
+
             this._web3.eth.getTransactionReceipt(job.txHash, (err, receipt) => {
                 if (err) {
                     return rej(err);

@@ -134,7 +134,7 @@ describe('transaction queue', () => {
                     tx: {
                         txHash: '0x695e286ad66da4d21aadcc588bf5b92ea29839813dd392915b204eb9426c4294',
                         type: TX_JOB_TYPE_NATION_CREATE,
-                        status: TX_JOB_STATUS_SUCCESS,
+                        status: TX_JOB_STATUS_PENDING,
                     },
                 })))
                 .then((nation) => {
@@ -167,7 +167,7 @@ describe('transaction queue', () => {
             const txQueueInstance = new TransactionQueue(db, new EventEmitter(), web3Mock);
 
             txQueueInstance
-                .processTransaction({txHash: 'abc'}, () => {})
+                .processTransaction({txHash: 'abc', status: TX_JOB_STATUS_PENDING}, () => {})
                 .then(done.fail)
                 .catch((e) => {
                     expect(e).toBe(error);
@@ -244,9 +244,9 @@ describe('transaction queue', () => {
 
             const txQueueInstance = new TransactionQueue(db, new EventEmitter(), web3Mock, msgQueueMock);
             txQueueInstance
-                .processTransaction({txHash: 'abc'}, (txSuccess, jobType) => {
+                .processTransaction({txHash: 'abc', status: TX_JOB_STATUS_PENDING}, (txSuccess, jobType) => {
                     expect(txSuccess).toBeTruthy();
-                    expect(jobType).toEqual({txHash: 'abc'});
+                    expect(jobType).toEqual({txHash: 'abc', status: 200});
                     return new Promise((res, rej) => res(dummyMessage));
                 })
                 .then((_) => {
