@@ -262,7 +262,7 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
          */
         joinNation: (nation: NationType): Promise<void> => new Promise((res, rej) => {
             if (!nation.stateMutateAllowed) {
-                rej({
+                return rej({
                     transKey: NATION_STATE_MUTATE_NOT_POSSIBLE,
                 });
             }
@@ -286,7 +286,7 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
         }),
         leaveNation: (nation: NationType): Promise<void> => new Promise((res, rej) => {
             if (!nation.stateMutateAllowed) {
-                rej({
+                return rej({
                     transKey: NATION_STATE_MUTATE_NOT_POSSIBLE,
                 });
             }
