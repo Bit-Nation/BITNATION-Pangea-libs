@@ -156,6 +156,10 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
 
                 waterfall(
                     [
+                        /**
+                         * @desc get all joined nation id's
+                         * @param cb
+                         */
                         (cb) => {
                             nationContract.getJoinedNations(function(err, res) {
                                 if (err) {
@@ -167,6 +171,41 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                                 cb();
                             });
                         },
+                        /**
+                         * @desc Updated all nation's with an transaction of type CREATE_NATION and the matching transactio hash
+                         * @param cb
+                         */
+                        (cb) => {
+                            /**
+                             * @desc We assign the id from the smart contract to the nation.
+                             * Every log contain's the txHash and the id of the nation
+                             * The reason why it's separate is, is that we need to update nation draft's that exist in the database based on the transaction hash and tx type
+                             */
+                            eachSeries(logs, function(log, cb) {
+                                db
+                                    .query((realm) => realm.objects('Nation').filtered(`tx.txHash = "${log.transactionHash}" AND tx.type = "NATION_CREATE"`))
+                                    .then((nations: Array<NationType>) => {
+                                        db
+                                            .write((realm) => {
+                                                nations[0].idInSmartContract = log.args.nationId.toNumber();
+
+                                                // There is no need for additional check's since
+                                                // log.transactionHash contain's the txHash of the nation create event.
+                                                nations[0].stateMutateAllowed = true;
+                                                nations[0].resetStateMutateAllowed = false;
+                                            })
+                                            .then((_) => cb())
+                                            .catch(cb);
+                                    })
+                                    .catch(cb);
+                            }, function(err) {
+                                cb(err);
+                            });
+                        },
+                        /**
+                         * @desc Index all nation's
+                         * @param cb
+                         */
                         (cb) => {
                             eachSeries(logs, function(log, cb) {
                                 const nationId = log.args.nationId.toNumber();
@@ -179,17 +218,22 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                                     citizens = citizens.toNumber();
 
                                     db
-                                    // We query for txHash since we get the tx hash when submitting the nation to the blockchain
-                                        .query((realm) => realm.objects('Nation').filtered(`txHash = "${log.transactionHash}"`))
-                                        .then((nations) => {
+                                        .query((realm) => realm.objects('Nation').filtered(`idInSmartContract = "${nationId}"`))
+                                        .then((nations: Array<NationType>) => {
                                             const nation = nations[0];
 
                                             if (nation) {
                                                 return db.write((realm) => {
-                                                    nation.idInSmartContract = nationId;
-                                                    nation.created = true;
                                                     nation.joined = joinedNations.includes(nationId);
                                                     nation.citizens = citizens;
+
+                                                    // We need to wait for resetStateMutateAllowed === true because that mean's we are allowed to reset stateMutateAllowed
+                                                    // And the job type must be !== TX_JOB_TYPE_NATION_CREATE because that is handled one function above.
+                                                    // The reson is that we need to make sure that the nation is successfully updated.
+                                                    if (nation.resetStateMutateAllowed === true && nation.tx && nation.tx.type !== TX_JOB_TYPE_NATION_CREATE) {
+                                                        nation.stateMutateAllowed = true;
+                                                        nation.resetStateMutateAllowed = false;
+                                                    }
                                                 });
                                             }
 
@@ -212,7 +256,6 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                                                             realm.create('Nation', {
                                                                 id: nationCount+1,
                                                                 idInSmartContract: nationId,
-                                                                txHash: log.transactionHash,
                                                                 nationName: result.nationName,
                                                                 nationDescription: result.nationDescription,
                                                                 created: true,
