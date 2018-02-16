@@ -10,7 +10,7 @@ import walletFactory from './ethereum/wallet';
 import type {OsDependenciesInterface} from './specification/osDependencies';
 import nationFactory from './ethereum/nation';
 import {APP_OFFLINE, AMOUNT_OF_ADDRESSES_CHANGED, APP_ONLINE} from './events';
-import txQueueFactory from './queues/transaction';
+import TxQueue from './queues/transaction';
 import messagingFactory from './queues/messaging';
 import {NATION_CONTRACT_ABI, NATION_CONTRACT_ADDRESS_DEV, NATION_CONTRACT_ADDRESS_PROD} from './constants';
 const EventEmitter = require('eventemitter3');
@@ -30,7 +30,6 @@ export default function pangeaLibsFactory(ss: SecureStorageInterface, dbPath: st
     const ethUtils = utilsFactory(ss, ee, osDeps);
     const profile = profileFactory(db, ethUtils);
     const msgQueue = messagingFactory(ee, db);
-    const txQueue = txQueueFactory(db, ee);
 
     const nationContractAddress = (production ? NATION_CONTRACT_ADDRESS_PROD : NATION_CONTRACT_ADDRESS_DEV);
 
@@ -40,7 +39,7 @@ export default function pangeaLibsFactory(ss: SecureStorageInterface, dbPath: st
             utils: ethUtils,
         },
         queue: {
-            txQueue: txQueue,
+            msgQueue: msgQueue,
         },
         profile: {
             profile,
@@ -56,6 +55,8 @@ export default function pangeaLibsFactory(ss: SecureStorageInterface, dbPath: st
             .then((web3) => {
                 // $FlowFixMe
                 pangeaLibs.eth.wallet = walletFactory(ethUtils, web3, db);
+                // $FlowFixMe
+                pangeaLibs.queue.txQueue = new TxQueue(db, ee, web3, msgQueue);
 
                 const nationContract = web3.eth.contract(NATION_CONTRACT_ABI).at(nationContractAddress);
 
@@ -92,6 +93,8 @@ export default function pangeaLibsFactory(ss: SecureStorageInterface, dbPath: st
             .then((web3) => {
                 // $FlowFixMe
                 pangeaLibs.eth.wallet = walletFactory(ethUtils, web3, db);
+                // $FlowFixMe
+                pangeaLibs.queue.txQueue = new TxQueue(db, ee, web3, msgQueue);
 
                 const nationContract = web3.eth.contract(NATION_CONTRACT_ABI).at(nationContractAddress);
 

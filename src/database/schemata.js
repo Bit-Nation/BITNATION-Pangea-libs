@@ -92,8 +92,10 @@ export const AccountBalanceSchema = {
 export type MessageJobType = {
     id: number,
     heading: string,
-    text: string,
+    params: string,
     version: number,
+    display: boolean,
+    interpret: boolean,
     created_at: Date
 }
 
@@ -102,8 +104,14 @@ export const MessageJobSchema = {
     primaryKey: 'id',
     properties: {
         id: 'int',
-        heading: 'string',
-        text: 'string',
+        heading: {
+            type: 'string',
+            optional: true,
+        },
+        interpret: 'bool',
+        params: 'string',
+        display: 'bool',
+        msg: 'string',
         version: 'int',
         created_at: 'date',
     },
@@ -112,65 +120,50 @@ export const MessageJobSchema = {
 /**
  * @typedef TransactionJobType
  * @property {number} id
- * @property {number} timeout
- * @property {string} processor
- * @property {object} data
- * @property {string} status
- * @property {number} version
- * @property {string} successHeading
- * @property {string} successBody
- * @property {string} failHeading
- * @property {string} failBody
+ * @property {string} txHash
+ * @property {number} status
+ * @property {string} type Can be something like NATION_JOIN, NATION_LEAVE, NATION_CREATE etc. Used to know what this transaction is about.
  */
 export type TransactionJobType = {
-    id: number,
-    timeout: number,
-    processor: string,
-    data: ?string,
-    successHeading: string,
-    successBody: string,
-    failHeading: string,
-    failBody: string,
-    status: 'WAITING' | 'DONE' | 'PROCESSING' | 'FAILED',
-    version: number
+    txHash: string,
+    status: number,
+    type: string,
+    nation: NationType | null
 }
 
 export const TransactionJobSchema = {
     name: 'TransactionJob',
-    primaryKey: 'id',
     properties: {
-        id: 'int',
-        timeout: 'int',
-        processor: 'string',
-        data: {
-            type: 'string',
-            optional: true,
+        txHash: 'string',
+        status: 'int',
+        type: 'string',
+        nation: {
+            type: 'linkingObjects',
+            objectType: 'Nation',
+            property: 'tx',
         },
-        successHeading: 'string',
-        successBody: 'string',
-        failHeading: 'string',
-        failBody: 'string',
-        status: 'string',
-        version: 'int',
     },
 };
 
 /**
  * @typedef NationType
- * @property {number} id
- * @property {number} idInSmartContract
- * @property {boolean} created Created mean's if it is on the blockchain
- * @property {string} nationName
- * @property {string} nationDescription
- * @property {boolean} exists
- * @property {boolean} virtualNation
- * @property {string} nationCode
+ * @property {number} id internal id of the dataset
+ * @property {number} idInSmartContract is the id in the nation smart contract. If not this will be -1.
+ * @property {boolean} created mean's if it is written to the blockchain (@todo this is probably an redundant field since you can get this information from "idInSmartContract")
+ * @property {string} nationName human readable name of the nation
+ * @property {string} nationDescription human readable description of the nation
+ * @property {boolean} exists Does the nation already exists?
+ * @property {boolean} virtualNation Is it a virtual nation?
+ * @property {string} nationCode The nation code of law.
  * @property {string} lawEnforcementMechanism
- * @property {boolean} profit
- * @property {boolean} nonCitizenUse
+ * @property {boolean} profit Is this nation a for profit use?
+ * @property {boolean} nonCitizenUse Can non citizens use the services?
  * @property {boolean} diplomaticRecognition
  * @property {string} decisionMakingProcess
  * @property {string} governanceService
+ * @property {number} citizens Number of citizens
+ * @property {boolean} joined Did I join the nation?
+ * @property {TransactionJobType | null} tx A transaction. It can be e.g. a transaction that is responsible for writing the nation to the blockchain.
  */
 export type NationType = {
     id: number,
@@ -189,7 +182,7 @@ export type NationType = {
     governanceService: string,
     citizens: number,
     joined: boolean,
-    txHash: string
+    tx: TransactionJobType | null
 }
 
 export const NationSchema = {
@@ -201,8 +194,8 @@ export const NationSchema = {
             default: -1,
             type: 'int',
         },
-        txHash: {
-            type: 'string',
+        tx: {
+            type: 'TransactionJob',
             optional: true,
         },
         created: 'bool',

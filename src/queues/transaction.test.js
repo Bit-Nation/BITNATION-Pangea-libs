@@ -1,69 +1,456 @@
-import transactionQueue from './transaction';
-import messagingQueue from './messaging';
+import TransactionQueue, {
+    TX_JOB_TYPE_NATION_JOIN, Msg, TX_JOB_TYPE_NATION_CREATE,
+    TX_JOB_STATUS_PENDING, TX_JOB_TYPE_NATION_LEAVE, TX_JOB_TYPE_ETH_SEND,
+} from './transaction';
 import type {TransactionJobType} from '../database/schemata';
-const EventEmitter = require('eventemitter3');
-import {TRANSACTION_QUEUE_JOB_ADDED} from '../events';
+import {TRANSACTION_QUEUE_JOB_ADDED, TRANSACTION_QUEUE_FINISHED_CYCLE} from '../events';
 import dbFactory from '../database/db';
-
+const EventEmitter = require('eventemitter3');
+const BigNumber = require('bignumber.js');
+const Web3 = require('web3');
 const dbPath = () => 'database/'+Math.random();
 
-describe('transaction', () => {
-    describe('addJob', () => {
-        test('emit "transaction_queue:job:added" event on save', (done) => {
-            const db = {
-                write: () => new Promise((res, rej) => res()),
-            };
+// Utils instance of web3 to ac
+const web3 = new Web3();
 
-            const ee = new EventEmitter();
+describe('transaction queue', () => {
+    const nationData = {
+        nationName: 'Bitnation',
+        nationDescription: 'We <3 cryptography',
+        exists: true,
+        virtualNation: false,
+        nationCode: 'Code civil',
+        lawEnforcementMechanism: 'xyz',
+        profit: true,
+        nonCitizenUse: false,
+        diplomaticRecognition: false,
+        decisionMakingProcess: 'dictatorship',
+        governanceService: 'Security',
+    };
+    describe('factory', () => {
+        test('invalid type', (done) => {
+            const txQueueInstance = new TransactionQueue(dbFactory(dbPath()), null);
 
-            ee.on(TRANSACTION_QUEUE_JOB_ADDED, () => {
-                done();
-            });
-
-            const txQueue = transactionQueue(db, ee);
-
-            txQueue
-                .addJob({})
-                .then()
-                .catch();
+            txQueueInstance
+                .jobFactory('0x8729514af0b8a5472ae4af1887cf07354032b085656d3cc62a97d6bc12b07194', 'I_AM_THE_WRONG_TYPE')
+                .then(done.fail)
+                .catch((error) => {
+                    expect(error).toEqual({
+                        transKey: 'system_error.tx_queue.invalid_type',
+                        params: {type: 'I_AM_THE_WRONG_TYPE'},
+                    });
+                    done();
+                });
         });
 
-        test('write job to database', (done) => {
+        test('invalid transaction hash', (done) => {
+            const txQueueInstance = new TransactionQueue(dbFactory(dbPath()), null);
+
+            txQueueInstance
+                .jobFactory('0x8729514af0b8a5472ae_INVALID_TRANSACTION_HASH_4af1887cf07354032b085656d3cc62a97d6bc12b07194', TX_JOB_TYPE_NATION_JOIN)
+                .then(done.fail)
+                .catch((error) => {
+                    expect(error).toEqual({
+                        transKey: 'system_error.tx_hash_invalid',
+                        params: {
+                            txHash: '0x8729514af0b8a5472ae_INVALID_TRANSACTION_HASH_4af1887cf07354032b085656d3cc62a97d6bc12b07194',
+                        },
+                    });
+                    done();
+                });
+        });
+
+        test('success', (done) => {
+            const txQueueInstance = new TransactionQueue(dbFactory(dbPath()), null);
+
+            txQueueInstance
+                .jobFactory('0x8729514af0b8a5472ae4af1887cf07354032b085656d3cc62a97d6bc12b07194', TX_JOB_TYPE_NATION_JOIN)
+                .then((job) => {
+                    expect(job).toEqual({
+                        txHash: '0x8729514af0b8a5472ae4af1887cf07354032b085656d3cc62a97d6bc12b07194',
+                        status: 200,
+                        type: TX_JOB_TYPE_NATION_JOIN,
+                        nation: null,
+                    });
+
+                    done();
+                });
+        });
+    });
+    describe('saveJob', () => {
+        test('success', (done) => {
             const db = dbFactory(dbPath());
 
-            const txQueue = transactionQueue(db, new EventEmitter());
+            const eventEmitterMock = {
+                emit: jest.fn(function(eventName, job) {
+                    expect(eventName).toBe(TRANSACTION_QUEUE_JOB_ADDED);
+                    expect(job.txHash).toBe('0x8729514af0b8a5472ae4af1887cf07354032b085656d3cc62a97d6bc12b07194');
+                    expect(job.status).toBe(200);
+                    expect(job.type).toBe('NATION_JOIN');
+                }),
+            };
 
-            const job:TransactionJobType = {
-                timeout: 30,
-                processor: 'my_processor',
-                data: {
-                    key_one: 'data_one',
-                    key_two: 'data_two',
+            const txQueueInstance = new TransactionQueue(db, eventEmitterMock);
+
+            db
+                .query((realm) => realm.objects('TransactionJob').length)
+                .then((transactionJobs) => {
+                    expect(transactionJobs).toBe(0);
+
+                    return txQueueInstance.jobFactory('0x8729514af0b8a5472ae4af1887cf07354032b085656d3cc62a97d6bc12b07194', TX_JOB_TYPE_NATION_JOIN);
+                })
+                .then((txJob) => txQueueInstance.saveJob(txJob))
+                .then((_) => db.query((realm) => realm.objects('TransactionJob')))
+                .then((transactionJobs) => {
+                    expect(transactionJobs[0].txHash).toBe('0x8729514af0b8a5472ae4af1887cf07354032b085656d3cc62a97d6bc12b07194');
+                    expect(transactionJobs[0].status).toBe(200);
+                    expect(transactionJobs[0].type).toBe('NATION_JOIN');
+                    // Make sure the event was emitted
+                    expect(eventEmitterMock.emit).toHaveBeenCalledTimes(1);
+                    done();
+                })
+                .catch(done.fail);
+        });
+    });
+    describe('transactionProcessor', () => {
+        test('web3 error', (done) => {
+            const db = dbFactory(dbPath());
+
+            const error = {};
+
+            const web3Mock = {
+                eth: {
+                    getTransactionReceipt: jest.fn((txHash, cb) => {
+                        expect(txHash).toBe('abc');
+                        cb(error);
+                    }),
                 },
-                successHeading: 'success_heading',
-                successBody: 'success_body',
-                failHeading: 'fail_heading',
-                failBody: 'fail_body',
+            };
+
+            const txQueueInstance = new TransactionQueue(db, new EventEmitter(), web3Mock);
+
+            txQueueInstance
+                .processTransaction({txHash: 'abc'}, () => {})
+                .then(done.fail)
+                .catch((e) => {
+                    expect(e).toBe(error);
+                    done();
+                });
+        });
+        test('web3 not tx receipt', (done) => {
+            const db = dbFactory(dbPath());
+
+            const web3Mock = {
+                eth: {
+                    getTransactionReceipt: jest.fn((txHash, cb) => {
+                        expect(txHash).toBe('abc');
+                        cb(null, null);
+                    }),
+                },
+            };
+
+            const txQueueInstance = new TransactionQueue(db, new EventEmitter(), web3Mock);
+
+            txQueueInstance
+                .processTransaction({txHash: 'abc'}, () => {})
+                .then((_) => {
+                    expect(_).toBeUndefined();
+                    done();
+                })
+                .catch(done.fail);
+        });
+        test('customProcessor null return value', (done) => {
+            const db = dbFactory(dbPath());
+
+            const web3Mock = {
+                eth: {
+                    getTransactionReceipt: jest.fn((txHash, cb) => {
+                        expect(txHash).toBe('abc');
+                        cb(null, {status: '0x1'});
+                    }),
+                },
+            };
+
+            const txQueueInstance = new TransactionQueue(db, new EventEmitter(), web3Mock);
+            txQueueInstance
+                .processTransaction({txHash: 'abc'}, (txSuccess, jobType) => {
+                    expect(txSuccess).toBeTruthy();
+                    expect(jobType).toEqual({txHash: 'abc'});
+                    return new Promise((res, rej) => res());
+                })
+                .then((_) => {
+                    expect(_).toBeUndefined();
+                    done();
+                })
+                .catch(done.fail);
+        });
+        test('customProcessor save message', (done) => {
+            const db = dbFactory(dbPath());
+
+            const web3Mock = {
+                eth: {
+                    getTransactionReceipt: jest.fn((txHash, cb) => {
+                        expect(txHash).toBe('abc');
+                        cb(null, {status: '0x1'});
+                    }),
+                },
+            };
+
+            const dummyMessage = {};
+
+            const msgQueueMock = {
+                addJob: jest.fn((msg) => {
+                    expect(msg).toBe(dummyMessage);
+                    return new Promise((res, rej) => res());
+                }),
+            };
+
+            const txQueueInstance = new TransactionQueue(db, new EventEmitter(), web3Mock, msgQueueMock);
+            txQueueInstance
+                .processTransaction({txHash: 'abc'}, (txSuccess, jobType) => {
+                    expect(txSuccess).toBeTruthy();
+                    expect(jobType).toEqual({txHash: 'abc'});
+                    return new Promise((res, rej) => res(dummyMessage));
+                })
+                .then((_) => {
+                    expect(msgQueueMock.addJob).toHaveBeenCalledTimes(1);
+                    expect(_).toBeUndefined();
+                    done();
+                })
+                .catch(done.fail);
+        });
+    });
+    describe('startProcessing', () => {
+        test('success', (done) => {
+            const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
+
+            let rounds = 0;
+
+            ee.on(TRANSACTION_QUEUE_FINISHED_CYCLE, () => {
+                if (rounds === 2) {
+                    done();
+                }
+
+                rounds++;
+            });
+
+            const web3Mock = {
+                eth: {
+                    getTransactionReceipt: function(hash, cb) {
+                        cb(null, {status: '0x1'});
+                    },
+                },
+            };
+
+            const msgQueueMock = {
+
+            };
+
+            const txQueue = new TransactionQueue(db, ee, web3Mock, msgQueueMock);
+            // mock time for next processing cycle
+            txQueue._processingTimeout = 1000;
+
+            // Reset the processor since we need an custom for this testing
+            txQueue._processors = {
+                'NATION_JOIN': (txSuccess:boolean, job:TransactionJobType) => {
+                    return new Msg('ok');
+                },
             };
 
             txQueue
-                .addJob(job)
-                .then((result) => {
-                    expect(result).toBeUndefined();
+                .jobFactory('0x5983f5ba66fdf89385247c923feeee941d16d6969156109447f8916d8ef93fb9', TX_JOB_TYPE_NATION_JOIN)
+                .then((job:TransactionJobType) => {
+                    txQueue
+                        .saveJob(job)
+                        .then((_) => {
+                            txQueue.startProcessing();
+                        })
+                        .catch(done.fail);
+                })
+                .catch(done.fail);
+        });
+    });
+    describe('processors - NATION_CREATE', () => {
+        test(`Try to process nation without a job`, (done) => {
+            const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
 
-                    db
-                        .query((realm) => realm.objects('TransactionJob'))
-                        .then((jobs) => {
-                            expect(jobs[0].timeout).toBe(30);
-                            expect(jobs[0].id).toBe(1);
-                            expect(jobs[0].processor).toBe('my_processor');
-                            expect(jobs[0].data).toBe(JSON.stringify({key_one: 'data_one', key_two: 'data_two'}));
-                            expect(jobs[0].successHeading).toBe('success_heading');
-                            expect(jobs[0].successBody).toBe('success_body');
-                            expect(jobs[0].failHeading).toBe('fail_heading');
-                            expect(jobs[0].failBody).toBe('fail_body');
-                            expect(jobs[0].version).toBe(1);
-                            expect(jobs[0].status).toBe('WAITING');
+            const txQueue = new TransactionQueue(db, ee, null, null);
+
+
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {id: 1, created: false})))
+                .then((nation) => txQueue._processors['NATION_CREATE'](true, nation))
+                .then(done.fail)
+                .catch((e) => {
+                    expect(e).toBe('There is no nation present on the job object');
+                    done();
+                });
+        });
+        test('process nation created successfully job', (done) => {
+            const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
+
+            const txQueue = new TransactionQueue(db, ee, null, null);
+
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {
+                    id: 1,
+                    created: false,
+                    tx: {
+                        txHash: '0x3b45d7e69eb85a18769ae79790879aa883b1732dd2fcd82ef5f561ad9db73fd9',
+                        status: TX_JOB_STATUS_PENDING,
+                        type: TX_JOB_TYPE_NATION_CREATE,
+                    },
+                })))
+                .then((nation) => {
+                    txQueue._processors['NATION_CREATE'](true, nation.tx)
+                        .then((msg) => {
+                            expect(msg._msg).toBe('nation.create.succeed');
+                            expect(msg._params).toEqual({
+                                nationName: 'Bitnation',
+                            });
+                            expect(msg._interpret).toBeTruthy();
+                            expect(msg._heading).toBe('nation.heading');
+                            expect(msg._display).toBeTruthy();
+
+                            expect(nation.joined).toBeFalsy();
+
+                            expect(nation.tx.txHash).toBe('0x3b45d7e69eb85a18769ae79790879aa883b1732dd2fcd82ef5f561ad9db73fd9');
+                            expect(nation.tx.status).toBe(300);
+                            expect(nation.tx.type).toBe('NATION_CREATE');
+
+                            done();
+                        })
+                        .catch(done.fail);
+                });
+        });
+        test('process nation created successfully job', (done) => {
+            const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
+
+            const txQueue = new TransactionQueue(db, ee, null, null);
+
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {
+                    id: 1,
+                    created: false,
+                    tx: {
+                        txHash: '0x3b45d7e69eb85a18769ae79790879aa883b1732dd2fcd82ef5f561ad9db73fd9',
+                        status: TX_JOB_STATUS_PENDING,
+                        type: TX_JOB_TYPE_NATION_CREATE,
+                    },
+                })))
+                .then((nation) => {
+                    txQueue._processors['NATION_CREATE'](false, nation.tx)
+                        .then((msg) => {
+                            expect(msg._msg).toBe('nation.create.failed');
+                            expect(msg._params).toEqual({
+                                nationName: 'Bitnation',
+                            });
+                            expect(msg._interpret).toBeTruthy();
+                            expect(msg._heading).toBe('nation.heading');
+                            expect(msg._display).toBeTruthy();
+
+                            expect(nation.joined).toBeFalsy();
+
+                            expect(nation.tx.txHash).toBe('0x3b45d7e69eb85a18769ae79790879aa883b1732dd2fcd82ef5f561ad9db73fd9');
+                            expect(nation.tx.status).toBe(400);
+                            expect(nation.tx.type).toBe('NATION_CREATE');
+
+                            done();
+                        })
+                        .catch(done.fail);
+                });
+        });
+    });
+    describe('processor - NATION_JOIN', () => {
+        test('no nation present in job', (done) => {
+            const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
+
+            const txQueue = new TransactionQueue(db, ee, null, null);
+
+            txQueue
+                ._processors['NATION_JOIN'](true, {nation: null})
+                .then((result) => {
+                    done.fail(`Expected to be reject`);
+                })
+                .catch((e) => {
+                    expect(e).toBe('There is no nation present on the job object');
+                    done();
+                });
+        });
+        test('join successfully', (done) => {
+            const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
+
+            const txQueue = new TransactionQueue(db, ee, null, null);
+
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {
+                    id: 1,
+                    created: false,
+                    tx: {
+                        txHash: '0x3b45d7e69eb85a18769ae79790879aa883b1732dd2fcd82ef5f561ad9db73fd9',
+                        status: TX_JOB_STATUS_PENDING,
+                        type: TX_JOB_TYPE_NATION_JOIN,
+                    },
+                })))
+                .then((nation) => {
+                    txQueue
+                        ._processors['NATION_JOIN'](true, nation.tx)
+                        .then((msg:Msg) => {
+                            expect(msg._heading).toBe('nation.heading');
+                            expect(msg._params).toEqual({
+                                nationName: 'Bitnation',
+                            });
+                            expect(msg._interpret).toBeTruthy();
+                            expect(msg._msg).toBe('nation.join.succeed');
+                            expect(msg._display).toBeTruthy();
+
+                            expect(nation.tx.txHash).toBe('0x3b45d7e69eb85a18769ae79790879aa883b1732dd2fcd82ef5f561ad9db73fd9');
+                            expect(nation.tx.status).toBe(300);
+                            expect(nation.tx.type).toBe(TX_JOB_TYPE_NATION_JOIN);
+
+                            done();
+                        })
+                        .catch(done.fail);
+                })
+                .catch(done.fail);
+        });
+        test('transaction fail', (done) => {
+            const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
+
+            const txQueue = new TransactionQueue(db, ee, null, null);
+
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {
+                    id: 1,
+                    created: false,
+                    tx: {
+                        txHash: '0x934a702acbaeb30b29d8d4bc12bbef7530e9c904ba55ab050e608b96f077585f',
+                        status: TX_JOB_STATUS_PENDING,
+                        type: TX_JOB_TYPE_NATION_JOIN,
+                    },
+                })))
+                .then((nation) => {
+                    txQueue
+                        ._processors['NATION_JOIN'](false, nation.tx)
+                        .then((msg:Msg) => {
+                            expect(msg._heading).toBe('nation.heading');
+                            expect(msg._params).toEqual({
+                                nationName: 'Bitnation',
+                            });
+                            expect(msg._interpret).toBeTruthy();
+                            expect(msg._msg).toBe('nation.join.failed');
+                            expect(msg._display).toBeTruthy();
+
+                            expect(nation.tx.txHash).toBe('0x934a702acbaeb30b29d8d4bc12bbef7530e9c904ba55ab050e608b96f077585f');
+                            expect(nation.tx.status).toBe(400);
+                            expect(nation.tx.type).toBe(TX_JOB_TYPE_NATION_JOIN);
 
                             done();
                         })
@@ -72,106 +459,183 @@ describe('transaction', () => {
                 .catch(done.fail);
         });
     });
-
-    test('registerProcessor', () => {
-        const db = dbFactory(dbPath());
-
-        const txQueue = transactionQueue(db, new EventEmitter());
-
-        expect(txQueue.processors['my_processor']).toBeUndefined();
-
-        txQueue.registerProcessor('my_processor', function() {
-
-        });
-
-        expect(txQueue.processors['my_processor']).toBeDefined();
-    });
-
-    describe('process', () => {
-        test('processor not found', (done) => {
+    describe('processor - NATION_LEAVE', () => {
+        test('no nation present in job', (done) => {
             const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
 
-            const job:TransactionJobType = {
-                timeout: 30,
-                processor: 'my_processor',
-                data: {
-                    key_one: 'data_one',
-                    key_two: 'data_two',
-                },
-                successHeading: 'success_heading',
-                successBody: 'success_body',
-                failHeading: 'fail_heading',
-                failBody: 'fail_body',
-            };
-
-            const txQueue = transactionQueue(db, new EventEmitter());
+            const txQueue = new TransactionQueue(db, ee, null, null);
 
             txQueue
-                .addJob(job)
-                .then((_) => txQueue.process())
-                .then((_) => {
-                    done.fail('The promise should be rejected');
+                ._processors['NATION_LEAVE'](true, {nation: null})
+                .then((result) => {
+                    done.fail(`Expected to be reject`);
                 })
                 .catch((e) => {
-                    expect(e.message).toBe('Couldn\'t find processor for my_processor');
+                    expect(e).toBe('There is no nation present on the job object');
                     done();
                 });
         });
-
-        test('added success message when job is completed', (done) => {
+        test('leave success', (done) => {
             const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
 
-            const job:TransactionJobType = {
-                timeout: 30,
-                processor: 'my_processor',
-                data: {
-                    key_one: 'data_one',
-                    key_two: 'data_two',
+            const txQueue = new TransactionQueue(db, ee, null, null);
+
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {
+                    id: 1,
+                    created: false,
+                    tx: {
+                        txHash: '0x3b45d7e69eb85a18769ae79790879aa883b1732dd2fcd82ef5f561ad9db73fd9',
+                        status: TX_JOB_STATUS_PENDING,
+                        type: TX_JOB_TYPE_NATION_LEAVE,
+                    },
+                })))
+                .then((nation) => {
+                    txQueue
+                        ._processors['NATION_LEAVE'](true, nation.tx)
+                        .then((msg:Msg) => {
+                            expect(msg._heading).toBe('nation.heading');
+                            expect(msg._params).toEqual({
+                                nationName: 'Bitnation',
+                            });
+                            expect(msg._interpret).toBeTruthy();
+                            expect(msg._msg).toBe('nation.leave.succeed');
+                            expect(msg._display).toBeTruthy();
+
+                            expect(nation.tx.txHash).toBe('0x3b45d7e69eb85a18769ae79790879aa883b1732dd2fcd82ef5f561ad9db73fd9');
+                            expect(nation.tx.status).toBe(300);
+                            expect(nation.tx.type).toBe(TX_JOB_TYPE_NATION_LEAVE);
+
+                            done();
+                        })
+                        .catch(done.fail);
+                })
+                .catch(done.fail);
+        });
+        test('leave failed', (done) => {
+            const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
+
+            const txQueue = new TransactionQueue(db, ee, null, null);
+
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {
+                    id: 1,
+                    created: false,
+                    tx: {
+                        txHash: '0x934a702acbaeb30b29d8d4bc12bbef7530e9c904ba55ab050e608b96f077585f',
+                        status: TX_JOB_STATUS_PENDING,
+                        type: TX_JOB_TYPE_NATION_LEAVE,
+                    },
+                })))
+                .then((nation) => {
+                    txQueue
+                        ._processors['NATION_LEAVE'](false, nation.tx)
+                        .then((msg:Msg) => {
+                            expect(msg._heading).toBe('nation.heading');
+                            expect(msg._params).toEqual({
+                                nationName: 'Bitnation',
+                            });
+                            expect(msg._interpret).toBeTruthy();
+                            expect(msg._msg).toBe('nation.leave.failed');
+                            expect(msg._display).toBeTruthy();
+
+                            expect(nation.tx.txHash).toBe('0x934a702acbaeb30b29d8d4bc12bbef7530e9c904ba55ab050e608b96f077585f');
+                            expect(nation.tx.status).toBe(400);
+                            expect(nation.tx.type).toBe(TX_JOB_TYPE_NATION_LEAVE);
+
+                            done();
+                        })
+                        .catch(done.fail);
+                })
+                .catch(done.fail);
+        });
+    });
+    describe('processor - ETH_SEND', () => {
+        test('tx success', (done) => {
+            const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
+
+            const web3Mock = {
+                eth: {
+                    getTransaction(txHash, cb) {
+                        expect(txHash).toBe('0xb1f058b50c4f34cf6fd9ad87eaa4355901bbc82598bcd8520107ec47986877eb');
+
+                        // Mock response data from web3 call
+                        const txData = {
+                            from: '0xab9cf604f9737524fc19483f742a69c7f2cd8924',
+                            to: '0x39aca8ee6fe736dea7ace3fcbf727705c7ddfa49',
+                            value: new BigNumber('1755065730000000000'),
+                        };
+
+                        cb(null, txData);
+                    },
                 },
-                successHeading: 'success_heading',
-                successBody: 'success_body',
-                failHeading: 'fail_heading',
-                failBody: 'fail_body',
+                fromWei: web3.fromWei,
             };
 
-            const msgQueue = {
-                addJob: jest.fn(function(title, body) {
-                    expect(title).toBe('success_heading');
-                    expect(body).toBe('success_body');
-                    return new Promise((res, rej) => res());
-                }),
-            };
-
-            const txQueue = transactionQueue(db, new EventEmitter(), msgQueue);
-
-            txQueue.registerProcessor('my_processor', function(done, txJob) {
-                expect(typeof txJob).toBe('object');
-
-                // Set job it to fake id. The transaction queue should fix that
-                // by setting the id of the job passed by the "done" callback
-                // to it's correct value
-                txJob.id = 1111111;
-
-                txJob.status = 'DONE';
-
-                done(txJob);
-            });
+            const txQueue = new TransactionQueue(db, ee, web3Mock, null);
 
             txQueue
-                .addJob(job)
-                .then((_) => db.query((realm) => realm.objects('TransactionJob')))
-                .then((jobs) => {
-                    expect(jobs[0].status).toBe('WAITING');
-                    expect(jobs[0].id).toBe(1);
-                })
-                .then((_) => txQueue.process())
-                .then((_) => db.query((realm) => realm.objects('TransactionJob')))
-                .then((jobs) => {
-                    expect(jobs[0].status).toBe('DONE');
-                    expect(jobs[0].id).toBe(1);
+                .jobFactory('0xb1f058b50c4f34cf6fd9ad87eaa4355901bbc82598bcd8520107ec47986877eb', TX_JOB_TYPE_ETH_SEND)
+                .then((job) => txQueue._processors['ETH_SEND'](true, job))
+                .then((msg) => {
+                    expect(msg._heading).toBe('transaction.heading');
+                    expect(msg._params).toEqual({
+                        from: '0xab9cf604f9737524fc19483f742a69c7f2cd8924',
+                        to: '0x39aca8ee6fe736dea7ace3fcbf727705c7ddfa49',
+                        value: '1.75506573',
+                        txHash: '0xb1f058b50c4f34cf6fd9ad87eaa4355901bbc82598bcd8520107ec47986877eb',
+                    });
+                    expect(msg._interpret).toBeTruthy();
+                    expect(msg._msg).toBe('transaction.succeed');
+                    expect(msg._display).toBeTruthy();
                     done();
                 })
+                .catch(done.fail);
+        });
+        test('tx failed', (done) => {
+            const db = dbFactory(dbPath());
+            const ee = new EventEmitter();
 
+            const web3Mock = {
+                eth: {
+                    getTransaction(txHash, cb) {
+                        expect(txHash).toBe('0xb1f058b50c4f34cf6fd9ad87eaa4355901bbc82598bcd8520107ec47986877eb');
+
+                        // Mock response data from web3 call
+                        const txData = {
+                            from: '0xab9cf604f9737524fc19483f742a69c7f2cd8924',
+                            to: '0x39aca8ee6fe736dea7ace3fcbf727705c7ddfa49',
+                            value: new BigNumber('1755065730000000000'),
+                        };
+
+                        cb(null, txData);
+                    },
+                },
+                fromWei: web3.fromWei,
+            };
+
+            const txQueue = new TransactionQueue(db, ee, web3Mock, null);
+
+            txQueue
+                .jobFactory('0xb1f058b50c4f34cf6fd9ad87eaa4355901bbc82598bcd8520107ec47986877eb', TX_JOB_TYPE_ETH_SEND)
+                .then((job) => txQueue._processors['ETH_SEND'](false, job))
+                .then((msg) => {
+                    expect(msg._heading).toBe('transaction.heading');
+                    expect(msg._params).toEqual({
+                        from: '0xab9cf604f9737524fc19483f742a69c7f2cd8924',
+                        to: '0x39aca8ee6fe736dea7ace3fcbf727705c7ddfa49',
+                        value: '1.75506573',
+                        txHash: '0xb1f058b50c4f34cf6fd9ad87eaa4355901bbc82598bcd8520107ec47986877eb',
+                    });
+                    expect(msg._interpret).toBeTruthy();
+                    expect(msg._msg).toBe('transaction.failed');
+                    expect(msg._display).toBeTruthy();
+                    done();
+                })
                 .catch(done.fail);
         });
     });

@@ -14,3 +14,10 @@ We are using docker for development.
 1. Get docker
 2. Run `docker-compose up -d`
 3. Run `docker-compose exec node bash`
+4. Within the docker image's shell, you may run `npm install` to set up the dependencies, and `npm test` to test the project.
+
+## Troubleshooting
+
+Problem: Test suite fails to run with `TypeError: Cannot redefine property: Worker`  
+
+Fix: See https://github.com/Bit-Nation/BITNATION-Pangea-libs/issues/55 for a deep dive into this issue. This is caused from a faulty version of realm installed locally. Version 2.1.1 of realm must be used in order to avoid this. This is believed to be fixed as of 2/7/2018 in the `develop` branch.

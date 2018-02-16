@@ -2,122 +2,340 @@
 
 import type {TransactionJobType} from '../database/schemata';
 import type {DBInterface} from '../database/db';
-import {TRANSACTION_QUEUE_JOB_ADDED} from '../events';
-import type {TxData} from '../specification/tx';
+import {TRANSACTION_QUEUE_JOB_ADDED, TRANSACTION_QUEUE_FINISHED_CYCLE} from './../events';
+import {MessagingQueueInterface, Msg} from './messaging';
 const EventEmitter = require('eventemitter3');
-const each = require('async/each');
-const Realm = require('realm');
-
-/**
- * @typedef TransactionQueueInterface
- * @property {function(job:TransactionJobInputType) : Promise<void>} addJob Add's an job to the queue and emit's the "transaction_queue:job:added" event
- */
-export interface TransactionQueueInterface {
-    addJob(job: TransactionJobInputType) : Promise<void>,
-    registerProcessor(name: string, processor: (done: (job: TransactionJobType) => void, job: TransactionJobType) => void) : void,
-    process() : Promise<void>
-}
-
-/**
- * @typedef TransactionJobInputType
- * @property {number} timeout
- * @property {string} processor
- * @property {object} data
- * @property {string} successHeading
- * @property {string} successBody
- * @property {string} failHeading
- * @property {string} failBody
- */
-export type TransactionJobInputType = {
-    timeout: number,
-    processor: string,
-    data: {...mixed},
-    successHeading: string,
-    successBody: string,
-    failHeading: string,
-    failBody: string,
-}
+const Web3 = require('web3');
+const eachSeries = require('async/eachSeries');
+const waterfall = require('async/waterfall');
+import {
+    NATION_CREATE_FAILED,
+    NATION_CREATE_SUCCEED,
+    NATION_ALERT_HEADING,
+    NATION_JOIN_SUCCEED,
+    NATION_JOIN_FAILED,
+    NATION_LEAVE_FAILED,
+    NATION_LEAVE_SUCCEED,
+    TRANSACTION_FAILED,
+    TRANSACTION_HEADING,
+    TRANSACTION_SUCCEED,
+} from '../transKeys';
 
 /**
  *
- * @param {DBInterface} db
- * @param {EventEmitter} ee
- * @return {TransactionQueueInterface}
  */
-export default function(db: DBInterface, ee: EventEmitter): TransactionQueueInterface {
-    const impl = {
-        processors: {},
-        addJob: (job: TransactionJobInputType): Promise<void> => new Promise((res, rej) => {
-            db
-                .write((realm) => {
-                    realm.create('TransactionJob', {
-                        timeout: job.timeout,
-                        processor: job.processor,
-                        data: JSON.stringify(job.data),
-                        id: realm.objects('TransactionJob').length +1,
-                        version: 1,
-                        successHeading: job.successHeading,
-                        successBody: job.successBody,
-                        failHeading: job.failHeading,
-                        failBody: job.failBody,
-                        status: 'WAITING',
-                    });
-                })
-                .then((_) => {
-                    ee.emit(TRANSACTION_QUEUE_JOB_ADDED);
+export interface TransactionQueueInterface {
+    jobFactory(txHash: string, type: string) : Promise<TransactionJobType>,
+    saveJob(job: TransactionJobType) : Promise<TransactionJobType>
+}
 
-                    res();
-                })
-                .catch(rej);
-        }),
-        registerProcessor: (name: string, processor: (done: (job: TransactionJobType) => void, job: TransactionJobType) => void): void => {
-            impl.processors[name] = processor;
+export const TX_JOB_TYPE_NATION_CREATE = 'NATION_CREATE';
+
+export const TX_JOB_TYPE_NATION_JOIN = 'NATION_JOIN';
+
+export const TX_JOB_TYPE_NATION_LEAVE = 'NATION_LEAVE';
+
+export const TX_JOB_TYPE_ETH_SEND = 'ETH_SEND';
+
+export const TX_JOB_STATUS_PENDING = 200;
+
+export const TX_JOB_STATUS_SUCCESS = 300;
+
+export const TX_JOB_STATUS_FAILED = 400;
+
+export default class TransactionQueue implements TransactionQueueInterface {
+    _db: DBInterface;
+    _ee: EventEmitter;
+    _web3: Web3;
+    _msgQueue: MessagingQueueInterface;
+    _jobStack: Array<TransactionJobType> = [];
+    _processingTimeout = 60 * 1000;
+    _startedWorker: boolean = false;
+    _processors = {
+        'NATION_CREATE': (txSuccess: boolean, job: TransactionJobType): Promise<Msg | null> => {
+            return new Promise((res, rej) => {
+                if (!job.nation) {
+                    return rej(`There is no nation present on the job object`);
+                }
+                // $FlowFixMe WE check above if the nation exist. So no reason to complain.
+                // The relation to nation is an realm result's object
+                const nation = job.nation[0];
+                const nationName = nation.nationName;
+
+                if (typeof txSuccess === 'boolean') {
+                    this
+                        ._db
+                        .write((realm) => {
+                            // $FlowFixMe WE check above if the nation exist. So no reason to complain.
+                            if (txSuccess === true) {
+                                job.status = TX_JOB_STATUS_SUCCESS;
+                            } else {
+                                job.status = TX_JOB_STATUS_FAILED;
+                            }
+                        })
+                        .then((_) => {
+                            if (txSuccess === true) {
+                                // $FlowFixMe WE check above if the nation exist. So no reason to complain.
+                                let msg = new Msg(NATION_CREATE_SUCCEED, {nationName});
+                                msg.display(NATION_ALERT_HEADING);
+                                return res(msg);
+                            }
+                            // $FlowFixMe WE check above if the nation exist. So no reason to complain.
+                            let msg = new Msg(NATION_CREATE_FAILED, {nationName});
+                            msg.display(NATION_ALERT_HEADING);
+                            res(msg);
+                        })
+                        .catch(rej);
+                }
+            });
         },
-        process: (): Promise<void> => new Promise((res, rej) => {
-            db
-                .query(function(realm) {
-                    return realm.objects('TransactionJob');
-                })
-                .then((jobs) => {
-                    each(jobs, function(TXJob: TransactionJobType, cb) {
-                        // find processor
-                        const processor = impl.processors[TXJob.processor];
+        'NATION_JOIN': (txSuccess: boolean, job: TransactionJobType): Promise<Msg | null> => {
+            return new Promise((res, rej) => {
+                if (!job.nation) {
+                    return rej(`There is no nation present on the job object`);
+                }
+                // $FlowFixMe WE check above if the nation exist. So no reason to complain.
+                // The relation to nation is an realm result's object
+                const nationName = job.nation[0].nationName;
 
-                        if (typeof processor !== 'function') {
-                            return rej(new Error(`Couldn't find processor for ${TXJob.processor}`));
-                        }
-
-                        /**
-                         * @desc This should be called in the processor to end the job
-                         * @param {TransactionJobType} job
-                         */
-                        function done(job: TransactionJobType) {
-                            if (typeof job.data !== 'string') {
-                                return rej('data must be an string');
+                if (typeof txSuccess === 'boolean') {
+                    this
+                        ._db
+                        .write((realm) => {
+                            if (txSuccess === true) {
+                                job.status = TX_JOB_STATUS_SUCCESS;
+                                return;
                             }
 
-                            job.id = TXJob.id;
+                            job.status = TX_JOB_STATUS_FAILED;
+                        })
+                        .then((_) => {
+                            let msg = new Msg(NATION_JOIN_FAILED, {nationName: nationName}, true);
 
-                            db
-                                .write((realm: Realm) => realm.create('TransactionJob', job, true))
-                                .then((_) => cb())
-                                .catch((error) => cb(error));
-                        }
+                            if (txSuccess === true) {
+                                msg = new Msg(NATION_JOIN_SUCCEED, {nationName: nationName}, true);
+                            };
 
-                        // JOSN.parse / stringify is used to remove the realm context from the object
-                        // there might be a better solution for it
-                        processor(done, JSON.parse(JSON.stringify(TXJob)));
-                    }, (error) => {
-                        if (error) {
-                            return rej(error);
-                        }
+                            msg.display(NATION_ALERT_HEADING);
+                            res(msg);
+                        })
+                        .catch();
+                }
+            });
+        },
+        'NATION_LEAVE': (txSuccess: boolean, job: TransactionJobType): Promise<Msg | null> => {
+            return new Promise((res, rej) => {
+                if (!job.nation) {
+                    return rej(`There is no nation present on the job object`);
+                }
+                // $FlowFixMe WE check above if the nation exist. So no reason to complain.
+                // The relation to nation is an realm result's object
+                const nationName = job.nation[0].nationName;
 
-                        res();
-                    });
-                })
-                .catch(rej);
-        }),
+                if (typeof txSuccess === 'boolean') {
+                    this
+                        ._db
+                        .write((realm) => {
+                            if (txSuccess === true) {
+                                job.status = TX_JOB_STATUS_SUCCESS;
+                                return;
+                            }
+
+                            job.status = TX_JOB_STATUS_FAILED;
+                        })
+                        .then((_) => {
+                            let msg = new Msg(NATION_LEAVE_FAILED, {nationName: nationName}, true);
+
+                            if (txSuccess === true) {
+                                msg = new Msg(NATION_LEAVE_SUCCEED, {nationName: nationName}, true);
+                            }
+
+                            msg.display(NATION_ALERT_HEADING);
+                            res(msg);
+                        })
+                        .catch();
+                }
+            });
+        },
+        'ETH_SEND': (txSuccess: boolean, job: TransactionJobType): Promise<Msg | null> => {
+            return new Promise((res, rej) => {
+                this._web3.eth.getTransaction(job.txHash, (err, txData) => {
+                    if (err) {
+                        return rej(err);
+                    }
+
+                    const value = this._web3.fromWei(txData.value, 'ether').toString();
+
+                    const params = {
+                        from: txData.from,
+                        to: txData.to,
+                        value: value,
+                        txHash: job.txHash,
+                    };
+
+                    let msg = new Msg(TRANSACTION_FAILED, params);
+
+                    if (txSuccess === true) {
+                        msg = new Msg(TRANSACTION_SUCCEED, params);
+                    }
+
+                    msg.display(TRANSACTION_HEADING);
+
+                    res(msg);
+                });
+            });
+        },
     };
 
-    return impl;
+    /**
+     *
+     * @param db
+     * @param ee
+     * @param web3
+     * @param msgQueue
+     */
+    constructor(db: DBInterface, ee: EventEmitter, web3: Web3, msgQueue: MessagingQueueInterface) {
+        this._db = db;
+        this._ee = ee;
+        this._web3 = web3;
+        this._msgQueue = msgQueue;
+    }
+
+    /**
+     *
+     * @param txHash
+     * @param type
+     * @return {Promise<TransactionJobType>}
+     */
+    jobFactory(txHash: string, type: string): Promise<TransactionJobType> {
+        return new Promise((res, rej) => {
+            const allowedTypes = [
+                TX_JOB_TYPE_NATION_CREATE,
+                TX_JOB_TYPE_NATION_JOIN,
+                TX_JOB_TYPE_NATION_LEAVE,
+                TX_JOB_TYPE_ETH_SEND,
+            ];
+
+            if (!allowedTypes.includes(type)) {
+                return rej({
+                    transKey: 'system_error.tx_queue.invalid_type',
+                    params: {type: type},
+                });
+            }
+
+            if (!/^0x([A-Fa-f0-9]{64})$/.exec(txHash)) {
+                return rej({
+                    transKey: 'system_error.tx_hash_invalid',
+                    params: {txHash},
+                });
+            }
+
+            const job:TransactionJobType = {
+                txHash: txHash,
+                status: 200,
+                type: type,
+                nation: null,
+            };
+
+            res(job);
+        });
+    }
+
+    startProcessing(): void {
+        if (this._startedWorker) {
+            return;
+        }
+
+        this._startedWorker = true;
+
+        this
+            ._db
+            .query((realm) => realm.objects('TransactionJob').filtered('status = "200"'))
+            .then((jobs: Array<TransactionJobType>) => {
+                jobs.map((job: TransactionJobType) => this._jobStack.push(job));
+
+                const processAction = () => {
+                    eachSeries(this._jobStack, (job: TransactionJobType, done) => {
+                        const p = this._processors[job.type];
+
+                        if (typeof p !== 'function') {
+                            return done(`Couldn't find a processor for type: ${job.type}`);
+                        }
+
+                        this
+                            .processTransaction(job, p)
+                            .then((_) => done())
+                            .catch(done);
+                    }, (err) => {
+                        // @todo handle error (maybe log?)
+                        this._ee.emit(TRANSACTION_QUEUE_FINISHED_CYCLE);
+                        setTimeout(processAction, this._processingTimeout);
+                    });
+                };
+
+                processAction();
+            })
+            .catch((e) => {
+                // @todo log
+                console.log(e);
+            });
+    }
+
+    /**
+     *
+     * @param job
+     * @return {Promise<TransactionJobType>}
+     */
+    saveJob(job: TransactionJobType): Promise<TransactionJobType> {
+        return new Promise((res, rej) => {
+            this._db
+                .write((realm) => realm.create('TransactionJob', job))
+                .then((job: TransactionJobType) => {
+                    this._ee.emit(TRANSACTION_QUEUE_JOB_ADDED, job);
+                    this._jobStack.push(job);
+                    res(job);
+                })
+                .catch(rej);
+        });
+    }
+
+    /**
+     * @desc Higher order function for processing a transaction job
+     * @param job
+     * @param customProcessor
+     * @return {Promise<any>}
+     */
+    processTransaction(job: TransactionJobType, customProcessor: (txSuccess: boolean, job: TransactionJobType) => Promise<Msg | null>): Promise<void> {
+        return new Promise((res, rej) => {
+            this._web3.eth.getTransactionReceipt(job.txHash, (err, receipt) => {
+                if (err) {
+                    return rej(err);
+                }
+
+                // When the transaction is pending there is no receipt - so we can resolve
+                if (!receipt) {
+                    return res();
+                }
+
+                customProcessor('0x1' === receipt.status, job)
+                    .then((result: Msg | null) => {
+                        if (!result) {
+                            return res();
+                        }
+
+                        this
+                            ._msgQueue
+                            .addJob(result)
+                            .then((_) => {
+                                // @todo log
+                                res();
+                            })
+                            .catch((_) => {
+                                // @todo log
+                                rej();
+                            });
+                    });
+            });
+        });
+    }
 }
