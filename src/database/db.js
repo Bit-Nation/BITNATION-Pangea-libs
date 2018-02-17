@@ -1,6 +1,7 @@
 // @flow
 const Realm = require('realm');
 const schemata = require('./schemata');
+const migrations = require('./migrations');
 
 /**
  * @typedef {Object} DBInterface
@@ -21,8 +22,12 @@ export interface DBInterface {
      */
     write(writeAction: (realm: Realm) => void) : Promise<any>;
 
+    close() : Promise<any>;
+
+    getRealm() : any;
 }
 
+var schemav = 0;
 /**
  * @module database/db.js
  * @param {string} path
@@ -39,6 +44,8 @@ export default function dbFactory(path: string): DBInterface {
                 schemata.TransactionJobSchema,
                 schemata.NationSchema,
             ],
+            schemaVersion: schemav++,// migrations.schemaVersion,
+            migration: migrations.default
         });
 
     const dbImplementation : DBInterface = {
@@ -57,6 +64,13 @@ export default function dbFactory(path: string): DBInterface {
                 .catch(rej);
         }),
 
+        close: (): Promise<*> => new Promise((res, rej) =>  {
+            realm
+                .then((r) => res(r.close()))
+                .catch(rej);
+        }),
+        
+        getRealm: () => { realm }
     };
 
     return dbImplementation;

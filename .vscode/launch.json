@@ -17,7 +17,8 @@
             "runtimeExecutable": "docker-compose",
             "runtimeArgs": [
                 "exec", "-T", "node", "npm", "run", "test:debug"
-            ]
+            ],
+            "stopOnEntry": true
         },
         {
             "name": "Attach",

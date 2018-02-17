@@ -83,3 +83,30 @@ describe('query', () => {
             .toEqual(new CustomError());
     });
 });
+
+
+describe('migrate', () => {
+    'use strict';
+
+    test('migrationtest', async () => {
+
+        var path = dbPath();
+
+        function close(db) {
+            db.close();
+        }
+
+        //Pass 1
+        var db = database(path);
+        await db
+          .write(r => "foo")
+          .then(() => db.close());
+        
+        //Pass 2
+        db = database(path)
+        await db
+          .write((r) => "bar")
+          .then(res => "");
+
+    });
+});

@@ -1,9 +1,12 @@
 // @flow
 
-// /////////////////////////////////////////////////////////
-// ATTENTION !!! Everyime you update the schema,         //
-//               update the relating interfaces as well. //
-// /////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////// //
+// ATTENTION !!! Everytime you update the schema:                             //
+//            1. Update the relating interfaces as well.                      //
+//            2. Ensure that migrations.js is updated.                        //
+//                                                                            //
+// As always, if you don't know what you're doing, feel free to ask for help! //
+// ////////////////////////////////////////////////////////////////////////// //
 
 // A note on e.g. ProfileType (and all types exported from this file).
 // In the project you will often see smth like this:
