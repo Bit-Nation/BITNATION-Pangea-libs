@@ -1,7 +1,6 @@
 // @flow
 const Realm = require('realm');
 const schemata = require('./schemata');
-const migrations = require('./migrations');
 
 /**
  * @typedef {Object} DBInterface
@@ -24,29 +23,52 @@ export interface DBInterface {
 
     close() : Promise<any>;
 
-    getRealm() : any;
 }
 
-var schemav = 0;
 /**
  * @module database/db.js
  * @param {string} path
+ * @param {number} schemaVersionAt If specified, force the schema version to be locked at this number. Not intended for use in production.
  * @return {DBInterface}
  */
-export default function dbFactory(path: string): DBInterface {
-    const realm = Realm
-        .open({
+export default function dbFactory(path: string, schemaVersionAt : number = -1): DBInterface {
+    function getRealmOptions(version) {
+        if (version < 0){
+            version = 0;
+        }
+    
+        const s = schemata.Schemas[version];
+        return {
             path: path,
-            schema: [
-                schemata.ProfileSchema,
-                schemata.AccountBalanceSchema,
-                schemata.MessageJobSchema,
-                schemata.TransactionJobSchema,
-                schemata.NationSchema,
-            ],
-            schemaVersion: schemav++,// migrations.schemaVersion,
-            migration: migrations.default
-        });
+            schema: s.schema,
+            schemaVersion: s.schemaVersion,
+            migration: s.migration
+        };
+    };
+
+    let latestVersion = schemaVersionAt >= 0 ? schemaVersionAt : schemata.LatestSchemaVersion;
+    if (latestVersion > schemata.LatestSchemaVersion){
+        throw "schemaVersionAt is out of range. Must be from 0 to " + schemata.LatestSchemaVersion;
+    }
+
+    //Perform migrations linearly, if needed
+    let currentSchemaVersion = Realm.schemaVersion(path);
+    if (schemaVersionAt >= 0) {
+        currentSchemaVersion = schemaVersionAt;
+    }
+
+    while (currentSchemaVersion < latestVersion) {
+        if (currentSchemaVersion < 0) {
+            currentSchemaVersion = 0;
+        }
+        const realmOptions = getRealmOptions(currentSchemaVersion);
+        const tempRealm = new Realm(realmOptions);
+        tempRealm.close(); //If we are not in the final iteration of the DB opening, then we need to close the DB.
+        currentSchemaVersion++;
+    }
+
+    let currentOpts = getRealmOptions(latestVersion);
+    const realm = Realm.open(currentOpts);
 
     const dbImplementation : DBInterface = {
 
@@ -68,9 +90,8 @@ export default function dbFactory(path: string): DBInterface {
             realm
                 .then((r) => res(r.close()))
                 .catch(rej);
-        }),
+        })
         
-        getRealm: () => { realm }
     };
 
     return dbImplementation;

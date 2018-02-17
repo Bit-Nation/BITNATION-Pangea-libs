@@ -1,9 +1,11 @@
 /* eslint-disable */
 
+const schemata = require('./schemata');
 import database from './db';
 const execSync = require('child_process').execSync;
 
 const dbPath = () => 'database/'+Math.random();
+
 
 describe('write', () => {
     'use strict';
@@ -90,17 +92,17 @@ describe('migrate', () => {
 
     test('migrationtest', async () => {
 
-        var path = dbPath();
+        const path = dbPath();
 
         function close(db) {
             db.close();
         }
 
         //Pass 1
-        var db = database(path);
+        let db = database(path);
         await db
           .write(r => "foo")
-          .then(() => db.close());
+          .then(() => close(db));
         
         //Pass 2
         db = database(path)
@@ -108,5 +110,25 @@ describe('migrate', () => {
           .write((r) => "bar")
           .then(res => "");
 
+    });
+
+    test('Max schema version in schemata.js should be consistent with schema file count.', () => {
+        let fs = require('fs');
+        
+        const expectedCount = schemata.LatestSchemaVersion + 1;
+
+        let schemaFiles = fs.readdirSync("./src/database/schema/").filter(name => name.endsWith('.js'));
+
+        return expect(expectedCount).toEqual(schemaFiles.length);
+    });
+
+    test('Schema files must have migration function', () => {
+        for(x in schemata.Schemas) {
+            
+        }
+    });
+
+    test('Schema files must have schemata', () => {
+        
     });
 });
