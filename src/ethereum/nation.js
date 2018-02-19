@@ -326,7 +326,6 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                         nation.stateMutateAllowed = false;
                         return job;
                     }))
-                    .then((job: TransactionJobType) => txQueue.saveJob(job))
                     .then((_) => res())
                     .catch(rej);
             });
@@ -350,7 +349,6 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                         nation.stateMutateAllowed = false;
                         return job;
                     }))
-                    .then((job: TransactionJobType) => txQueue.saveJob(job))
                     .then((_) => res())
                     .catch(rej);
             });
