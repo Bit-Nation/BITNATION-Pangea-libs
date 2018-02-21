@@ -15,6 +15,19 @@ export const SampleDB : SampleDBInterface = {
     GetSchemaVersion: () => 0,
     Create: async (db : DBInterface) => {
         db.write(realm => {
+            let tx : TransactionJobType = { 
+                data: "",
+                failBody: "",
+                failHeading: "",
+                id: 1,
+                processor: "",
+                status: "DONE",
+                successBody: "",
+                successHeading: "",
+                timeout: 1,
+                version: 1
+            };
+
             let nation : NationType =  {
                 id: 1,
                 idInSmartContract: 1,
@@ -41,7 +54,7 @@ export const SampleDB : SampleDBInterface = {
                 amount: "0",
                 currency: "BTC",
                 id: "0",
-                synced_at: 0
+                synced_at: new Date()
             };
             realm.create("AccountBalance", ab);
             

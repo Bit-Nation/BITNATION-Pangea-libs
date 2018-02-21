@@ -1,5 +1,6 @@
 /* eslint-disable */
 
+const sampledbs = require('../sampledb/sampledb');
 const schemata = require('./schemata');
 import database from './db';
 const execSync = require('child_process').execSync;
@@ -88,8 +89,8 @@ describe('query', () => {
 
 
 describe('migrate', () => {
-    'use strict';
-
+    
+/*
     test('migrationtest', async () => {
 
         const path = dbPath();
@@ -130,5 +131,9 @@ describe('migrate', () => {
 
     test('Schema files must have schemata', () => {
         
+    });
+*/
+    test('With sampledb', async () => {
+        await sampledbs.BuildSampleDBs();
     });
 });

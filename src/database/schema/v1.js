@@ -214,5 +214,29 @@ export const schemata =
 ];
 
 export const migration = (realm0 : any, realm1 : any) => {
-    
+     
+    let oldtxs = realm0.objects("TransactionJob");
+    let newtxs = realm1.objects("TransactionJob");
+    for(let i = 0; i < oldtxs.length; i++) {
+        newtxs[i].txHash = ?;
+        newtxs[i].status = ?; //old status looks to be a discriminated union type, new status is a number
+        newtxs[i].type = ?; //Type did not exist in old status
+        newtxs[i].nation = ?; //Circular reference?
+    } 
+
+    let oldmsgs = realm0.objects("MessageJob");
+    let newmsgs = realm1.objects("MessageJob");
+    for(let i = 0; i < oldmsgs.length; i++) {
+        newmsgs[i].display = ?; //Default: true or false?
+        newmsgs[i].interpret = ?; //Default: true or false?
+        newmsgs[i].params = ?; //Default: ?
+        //oldmsgs[i].text goes where?
+    }
+
+    let oldnation = realm0.objects("Nation");
+    let newnation = realm1.objects("Nation");
+
+    for(let i = 0; i < oldnation.length; i++) {
+      //newnation[i].tx = ?; //Look up tx object based on tx hash
+    } 
 }
