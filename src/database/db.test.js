@@ -90,7 +90,6 @@ describe('query', () => {
 
 describe('migrate', () => {
     
-/*
     test('migrationtest', async () => {
 
         const path = dbPath();
@@ -106,7 +105,7 @@ describe('migrate', () => {
           .then(() => close(db));
         
         //Pass 2
-        db = database(path)
+        db = database(path);
         await db
           .write((r) => "bar")
           .then(res => "");
@@ -124,15 +123,13 @@ describe('migrate', () => {
     });
 
     test('Schema files must have migration function', () => {
-        for(x in schemata.Schemas) {
-            
-        }
+        schemata.Schemas.map(schema => expect(typeof schema.migration).toBe('function'));
     });
 
     test('Schema files must have schemata', () => {
-        
+        throw new Error("Must be implemented");
     });
-*/
+
     test('With sampledb', async () => {
         await sampledbs.BuildSampleDBs();
     });
