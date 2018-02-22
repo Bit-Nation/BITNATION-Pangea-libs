@@ -123,11 +123,23 @@ describe('migrate', () => {
     });
 
     test('Schema files must have migration function', () => {
-        schemata.Schemas.map(schema => expect(typeof schema.migration).toBe('function'));
+        schemata.Schemas.forEach(schema => expect(typeof schema.migration).toBe('function'));
     });
 
-    test('Schema files must have schemata', () => {
-        throw new Error("Must be implemented");
+    test('Schemas exist', () => {
+        expect(Array.isArray(schemata.Schemas)).toBe(true);
+        expect(schemata.Schemas.length).toEqual(schemata.LatestSchemaVersion + 1);
+    });
+
+    test('Schema files must have schemata', () => { 
+        // Since schema files themselves can't be imported dynamically, 
+        // We are testing that 'schema' exists within the schemata.Schemas elements
+        // rather than testing the files directly
+        let s = schemata.Schemas;
+        schemata.Schemas.forEach(schema => { 
+            expect(Array.isArray(schema.schema)).toBe(true);
+            expect(schema.schema.length).toBeGreaterThan(0);
+        });
     });
 
     test('With sampledb', async () => {
