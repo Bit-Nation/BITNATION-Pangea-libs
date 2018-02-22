@@ -3,6 +3,9 @@
 const sampledbs = require('../sampledb/sampledb');
 const schemata = require('./schemata');
 import database from './db';
+const realm = require('realm');
+const _0Schema = require('./schema/v0.js');
+const _1Schema = require('./schema/v1.js');
 const execSync = require('child_process').execSync;
 
 const dbPath = () => 'database/'+Math.random();
@@ -89,7 +92,40 @@ describe('query', () => {
 
 
 describe('migrate', () => {
-    
+
+    //If we can open the same path without a promise rejection that mean's we succeed.
+    //Realm will reject the promise if we miss somethig
+    test('migrate from 0.3.1 -> 0.3.2', (done) => {
+
+        const dbp = dbPath();
+
+        const _031Factory = () => realm.open({
+            path: dbp,
+            schema: _0Schema.schemata,
+            schemaVersion: 0,
+            migration: _0Schema.migration
+        });
+
+        const _032Factory = () => realm.open({
+            path: dbp,
+            schema: _1Schema.schemata,
+            schemaVersion: 1,
+            migration: _1Schema.migration
+        });
+
+        _031Factory()
+            .then(db => {
+                db.close();
+                return _032Factory();
+            })
+            .then(_ => {
+                //if there is an error with the migration we won't get here
+                done();
+            })
+            .catch(done.fail)
+
+    });
+
     test('migrationtest', async () => {
 
         const path = dbPath();
