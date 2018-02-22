@@ -17,7 +17,7 @@
     "test:inspect": "flow && node --inspect node_modules/.bin/jest",
     "test:watch:inspect": "nodemon --exec \"npm run test:inspect\"",
     "test:debug-brk": "flow && node --inspect-brk=0.0.0.0:5858 node_modules/.bin/jest",
-    "test:debug": "flow && node --inspect=0.0.0.0:5858 node_modules/.bin/jest --forceExit --runInBand --testNamePattern=.*"
+    "test:debug": "flow && node --inspect=0.0.0.0:5858 node_modules/.bin/jest --forceExit --runInBand --no-cache --testNamePattern=.*"
   },
   "keywords": [],
   "author": "",
