@@ -206,7 +206,7 @@ export const NationSchema = {
     },
 };
 
-export const schemata = 
+export const schemata =
 [
     ProfileSchema,
     AccountBalanceSchema,
@@ -215,16 +215,24 @@ export const schemata =
     NationSchema,
 ];
 
-export const migration = (realm0 : any, realm1 : any) => {
-
-    //Migrate nation's
-    //1. Create tx job from tx hash with the status pending.
+export const migration = (oldRealm: any, newRealm: any) => {
+    // Migrate nation's
+    // 1. Create tx job from tx hash with the status pending.
     //   Pending because an but in 0.3.1 prevented us from submitting the nations
-    realm0.objects('Nation').map((nation) => realm1.create('TransactionJob', {
-        txHash: nation.txHash,
-        status: TX_JOB_STATUS_PENDING,
-        type: TX_JOB_TYPE_NATION_CREATE,
-        nation: nation
-    }))
+    oldRealm.objects('Nation').map((oldNation) => {
+        const newNation = newRealm.objects('Nation').filtered(`id = "${oldNation.id}"`)[0];
 
+        if (!newNation) {
+            throw new Error(`Couldn't find nation for id: ${oldNation.id}`);
+        }
+
+        // Not all nation's have a transaction hash
+        if (oldNation.tx !== null) {
+            newNation.tx = newRealm.create('TransactionJob', {
+                txHash: oldNation.txHash,
+                status: TX_JOB_STATUS_PENDING,
+                type: TX_JOB_TYPE_NATION_CREATE,
+            });
+        }
+    });
 };

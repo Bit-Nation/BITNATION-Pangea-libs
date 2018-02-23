@@ -115,12 +115,59 @@ describe('migrate', () => {
 
         _031Factory()
             .then(db => {
+
+                //Persist test data
+                db.write(() => {
+                    db.create('Nation', {
+                        id: 1,
+                        created: false,
+                        nationName: 'Bitnation',
+                        nationDescription: 'We <3 cryptography',
+                        exists: true,
+                        virtualNation: false,
+                        nationCode: 'Code civil',
+                        lawEnforcementMechanism: 'xyz',
+                        profit: true,
+                        nonCitizenUse: false,
+                        diplomaticRecognition: false,
+                        decisionMakingProcess: 'dictatorship',
+                        governanceService: 'Security',
+                        txHash: '0x58f4465fc2f461b4508f73049e087ae32261309c5314f78e0be16a954e892c3f'
+                    });
+                });
+
                 db.close();
                 return _032Factory();
             })
-            .then(_ => {
-                //if there is an error with the migration we won't get here
+            .then(db => {
+                db.close();
+                return _032Factory();
+            })
+            .then(db => {
+
+                const nations = db.objects('Nation');
+
+                expect(nations.length).toBe(1);
+
+                expect(nations[0].id).toBe(1);
+                expect(nations[0].nationName).toBe('Bitnation');
+                expect(nations[0].created).toBe(false);
+                expect(nations[0].nationDescription).toBe('We <3 cryptography');
+                expect(nations[0].exists).toBe(true);
+                expect(nations[0].nationCode).toBe('Code civil');
+                expect(nations[0].lawEnforcementMechanism).toBe('xyz');
+                expect(nations[0].profit).toBe(true);
+                expect(nations[0].nonCitizenUse).toBe(false);
+                expect(nations[0].diplomaticRecognition).toBe(false);
+                expect(nations[0].decisionMakingProcess).toBe('dictatorship');
+
+                //And tx job should have beed created for the nation
+                expect(nations[0].tx.txHash).toBe('0x58f4465fc2f461b4508f73049e087ae32261309c5314f78e0be16a954e892c3f');
+                expect(nations[0].tx.status).toBe(200);
+                expect(nations[0].tx.type).toBe('NATION_CREATE');
+
                 done();
+
             })
             .catch(done.fail)
 
