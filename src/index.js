@@ -61,7 +61,7 @@ export default function pangeaLibsFactory(ss: SecureStorageInterface, dbPath: st
                 const nationContract = web3.eth.contract(NATION_CONTRACT_ABI).at(nationContractAddress);
 
                 // $FlowFixMe
-                pangeaLibs.eth.nation = nationFactory(db, txQueue, web3, ee, nationContract);
+                pangeaLibs.eth.nation = nationFactory(db, pangeaLibs.queue.txQueue, web3, ee, nationContract);
             })
             .catch((e) => {
                 throw e;
@@ -99,7 +99,7 @@ export default function pangeaLibsFactory(ss: SecureStorageInterface, dbPath: st
                 const nationContract = web3.eth.contract(NATION_CONTRACT_ABI).at(nationContractAddress);
 
                 // $FlowFixMe
-                pangeaLibs.eth.nation = nationFactory(db, txQueue, web3, ee, nationContract);
+                pangeaLibs.eth.nation = nationFactory(db, pangeaLibs.queue.txQueue, web3, ee, nationContract);
 
                 res(pangeaLibs);
             })

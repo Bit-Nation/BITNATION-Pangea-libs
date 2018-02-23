@@ -19,7 +19,7 @@ export interface DBInterface {
      * Expect an callback that that will receive an instance of realm.
      * The callback should return nothing.
      */
-    write(writeAction: (realm: Realm) => void) : Promise<any>;
+    write(writeAction: (realm: Realm) => any) : Promise<any>;
 
     close() : Promise<any>;
 

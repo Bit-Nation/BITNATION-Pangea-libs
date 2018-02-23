@@ -3,7 +3,12 @@
 import type {NationType, TransactionJobType} from '../database/schemata';
 import type {DBInterface} from '../database/db';
 import type {TransactionQueueInterface} from '../queues/transaction';
-import {TX_JOB_TYPE_NATION_CREATE} from '../queues/transaction';
+import {
+    TX_JOB_TYPE_NATION_CREATE,
+    TX_JOB_TYPE_NATION_JOIN,
+    TX_JOB_TYPE_NATION_LEAVE,
+} from '../queues/transaction';
+import {NATION_STATE_MUTATE_NOT_POSSIBLE} from '../transKeys';
 const Web3 = require('web3');
 const EventEmitter = require('eventemitter3');
 const eachSeries = require('async/eachSeries');
@@ -46,8 +51,8 @@ export type NationInputType = {
 export interface NationInterface {
     all() : Promise<NationType>,
     index() : Promise<void>,
-    joinNation(id: number) : Promise<void>,
-    leaveNation(id: number) : Promise<void>,
+    joinNation(id: NationType) : Promise<void>,
+    leaveNation(nation: NationType) : Promise<void>,
     saveDraft(nation: NationInputType) : Promise<{transKey: string, nation: NationType}>,
     updateDraft(nationId: number, nation: NationInputType) : Promise<{transKey: string, nation: NationType}>,
     submitDraft(nationId: number) : Promise<{transKey: string, nation: NationType}>,
@@ -151,6 +156,10 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
 
                 waterfall(
                     [
+                        /**
+                         * @desc get all joined nation id's
+                         * @param cb
+                         */
                         (cb) => {
                             nationContract.getJoinedNations(function(err, res) {
                                 if (err) {
@@ -162,6 +171,45 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                                 cb();
                             });
                         },
+                        /**
+                         * @desc Updated all nation's with an transaction of type CREATE_NATION and the matching transactio hash
+                         * @param cb
+                         */
+                        (cb) => {
+                            /**
+                             * @desc We assign the id from the smart contract to the nation.
+                             * Every log contain's the txHash and the id of the nation
+                             * The reason why it's separate is, is that we need to update nation draft's that exist in the database based on the transaction hash and tx type
+                             */
+                            eachSeries(logs, function(log, cb) {
+                                db
+                                    .query((realm) => realm.objects('Nation').filtered(`tx.txHash = "${log.transactionHash}" AND tx.type = "NATION_CREATE"`))
+                                    .then((nations: Array<NationType>) => {
+                                        if (!nations[0]) {
+                                            return cb();
+                                        }
+
+                                        db
+                                            .write((realm) => {
+                                                nations[0].idInSmartContract = log.args.nationId.toNumber();
+
+                                                // There is no need for additional check's since
+                                                // log.transactionHash contain's the txHash of the nation create event.
+                                                nations[0].stateMutateAllowed = true;
+                                                nations[0].resetStateMutateAllowed = false;
+                                            })
+                                            .then((_) => cb())
+                                            .catch(cb);
+                                    })
+                                    .catch(cb);
+                            }, function(err) {
+                                cb(err);
+                            });
+                        },
+                        /**
+                         * @desc Index all nation's
+                         * @param cb
+                         */
                         (cb) => {
                             eachSeries(logs, function(log, cb) {
                                 const nationId = log.args.nationId.toNumber();
@@ -174,17 +222,22 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                                     citizens = citizens.toNumber();
 
                                     db
-                                    // We query for txHash since we get the tx hash when submitting the nation to the blockchain
-                                        .query((realm) => realm.objects('Nation').filtered(`txHash = "${log.transactionHash}"`))
-                                        .then((nations) => {
+                                        .query((realm) => realm.objects('Nation').filtered(`idInSmartContract = "${nationId}"`))
+                                        .then((nations: Array<NationType>) => {
                                             const nation = nations[0];
 
                                             if (nation) {
                                                 return db.write((realm) => {
-                                                    nation.idInSmartContract = nationId;
-                                                    nation.created = true;
                                                     nation.joined = joinedNations.includes(nationId);
                                                     nation.citizens = citizens;
+
+                                                    // We need to wait for resetStateMutateAllowed === true because that mean's we are allowed to reset stateMutateAllowed
+                                                    // And the job type must be !== TX_JOB_TYPE_NATION_CREATE because that is handled one function above.
+                                                    // The reson is that we need to make sure that the nation is successfully updated.
+                                                    if (nation.resetStateMutateAllowed === true && nation.tx && nation.tx.type !== TX_JOB_TYPE_NATION_CREATE) {
+                                                        nation.stateMutateAllowed = true;
+                                                        nation.resetStateMutateAllowed = false;
+                                                    }
                                                 });
                                             }
 
@@ -207,7 +260,6 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                                                             realm.create('Nation', {
                                                                 id: nationCount+1,
                                                                 idInSmartContract: nationId,
-                                                                txHash: log.transactionHash,
                                                                 nationName: result.nationName,
                                                                 nationDescription: result.nationDescription,
                                                                 created: true,
@@ -251,22 +303,54 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                 );
             });
         }),
-        joinNation: (id: number): Promise<void> => new Promise((res, rej) => {
-            nationContract.joinNation(id, function(err, txHash) {
+        /**
+         * @param {NationType} nation The nation you would like to join
+         * @return {Promise<void>}
+         */
+        joinNation: (nation: NationType): Promise<void> => new Promise((res, rej) => {
+            if (!nation.stateMutateAllowed) {
+                return rej({
+                    transKey: NATION_STATE_MUTATE_NOT_POSSIBLE,
+                });
+            }
+
+            nationContract.joinNation(nation.idInSmartContract, function(err, txHash) {
                 if (err) {
                     return rej(err);
                 }
 
-                res();
+                txQueue
+                    .jobFactory(txHash, TX_JOB_TYPE_NATION_JOIN)
+                    .then((job: TransactionJobType) => db.write((_) => {
+                        nation.tx = job;
+                        nation.stateMutateAllowed = false;
+                        return job;
+                    }))
+                    .then((_) => res())
+                    .catch(rej);
             });
         }),
-        leaveNation: (id: number): Promise<void> => new Promise((res, rej) => {
-            nationContract.leaveNation(id, function(err, txHash) {
+        leaveNation: (nation: NationType): Promise<void> => new Promise((res, rej) => {
+            if (!nation.stateMutateAllowed) {
+                return rej({
+                    transKey: NATION_STATE_MUTATE_NOT_POSSIBLE,
+                });
+            }
+
+            nationContract.leaveNation(nation.idInSmartContract, function(err, txHash) {
                 if (err) {
                     return rej(err);
                 }
 
-                return res();
+                txQueue
+                    .jobFactory(txHash, TX_JOB_TYPE_NATION_LEAVE)
+                    .then((job: TransactionJobType) => db.write((_) => {
+                        nation.tx = job;
+                        nation.stateMutateAllowed = false;
+                        return job;
+                    }))
+                    .then((_) => res())
+                    .catch(rej);
             });
         }),
         submitDraft: (nationId: number): Promise<{transKey: string, nation: NationType}> => new Promise((res, rej) => {
@@ -275,6 +359,12 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                 .then((nations) => {
                     if (nations.length <= 0) {
                         return rej('system_error.nation.does_not_exist');
+                    }
+
+                    if (!nations[0].stateMutateAllowed) {
+                        return rej({
+                            transKey: NATION_STATE_MUTATE_NOT_POSSIBLE,
+                        });
                     }
 
                     // it in smart contract is only >= 0 when the nation was written to the blockchain
@@ -314,6 +404,7 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                                 .jobFactory(txHash, TX_JOB_TYPE_NATION_CREATE)
                                 .then((txJob: TransactionJobType) => db.write((realm) => {
                                     nation.tx = txJob;
+                                    nation.stateMutateAllowed = false;
                                 }))
                                 .then((_) => res({
                                     transKey: 'nation.submit_success',
@@ -326,11 +417,7 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                         }
                     );
                 })
-                .catch((error) => {
-                    console.log(error);
-                    // @todo report error in future
-                    rej('system_error.db_query_failed');
-                });
+                .catch(rej);
         }),
         saveAndSubmit: (nationData: NationInputType): Promise<{transKey: string, nation: NationType}> => new Promise((res, rej) => {
             impl
