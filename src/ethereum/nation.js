@@ -323,7 +323,7 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                       });
                   }
 
-                  nationContract.joinNation(nation.idInSmartContract, function (err, txHash) {
+                  nationContract.joinNation(nation.idInSmartContract, function(err, txHash) {
                       if (err) {
                           return rej(err);
                       }
@@ -356,7 +356,7 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                     });
                 }
 
-                nationContract.leaveNation(nation.idInSmartContract, function (err, txHash) {
+                nationContract.leaveNation(nation.idInSmartContract, function(err, txHash) {
                     if (err) {
                         return rej(err);
                     }

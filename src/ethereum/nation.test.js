@@ -126,7 +126,7 @@ describe('nation', () => {
                             });
                         done();
                     });
-                })
+                });
         });
         test('fail web3 error', (done) => {
             const nationContractMock = {

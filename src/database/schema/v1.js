@@ -238,9 +238,9 @@ export const migration = (oldRealm: any, newRealm: any) => {
             throw new Error(`Couldn't find nation for id: ${oldNation.id}`);
         }
 
-        //Nation's index by version 0.3.1 contain the tx hash by default.
-        //That's the reason why we need to check if the dataset is a local created one
-        if(oldNation.idInSmartContract !== -1){
+        // Nation's index by version 0.3.1 contain the tx hash by default.
+        // That's the reason why we need to check if the dataset is a local created one
+        if (oldNation.idInSmartContract !== -1) {
             return;
         }
 
