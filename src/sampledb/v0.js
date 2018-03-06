@@ -8,27 +8,27 @@ import type {
     MessageJobType,
     NationType,
     ProfileType,
-    TransactionJobType
+    TransactionJobType,
 } from '../database/schema/v0';
 
 export const SampleDB : SampleDBInterface = {
     GetSchemaVersion: () => 0,
-    Create: async (db : DBInterface) => {
-        db.write(realm => {
-            let tx : TransactionJobType = { 
-                data: "",
-                failBody: "",
-                failHeading: "",
+    Create: async (db: DBInterface) => {
+        db.write((realm) => {
+            let tx : TransactionJobType = {
+                data: '',
+                failBody: '',
+                failHeading: '',
                 id: 1,
-                processor: "",
-                status: "DONE",
-                successBody: "",
-                successHeading: "",
+                processor: '',
+                status: 'DONE',
+                successBody: '',
+                successHeading: '',
                 timeout: 1,
-                version: 1
+                version: 1,
             };
 
-            let nation : NationType =  {
+            let nation : NationType = {
                 id: 1,
                 idInSmartContract: 1,
                 created: true,
@@ -45,27 +45,27 @@ export const SampleDB : SampleDBInterface = {
                 governanceService: 'foo',
                 citizens: 1,
                 joined: true,
-                txHash: 'foo'
+                txHash: 'foo',
             };
-            realm.create("Nation", nation);
-            
+            realm.create('Nation', nation);
+
             let ab : AccountBalanceType = {
-                address: "0",
-                amount: "0",
-                currency: "BTC",
-                id: "0",
-                synced_at: new Date()
+                address: '0',
+                amount: '0',
+                currency: 'BTC',
+                id: '0',
+                synced_at: new Date(),
             };
-            realm.create("AccountBalance", ab);
-            
+            realm.create('AccountBalance', ab);
+
             let msg : MessageJobType = {
-                created_at: new Date(2018,1,1),
-                heading: "",
+                created_at: new Date(2018, 1, 1),
+                heading: '',
                 id: 0,
-                text: "foo",
-                version: 0
+                text: 'foo',
+                version: 0,
             };
-            realm.create("MessageJob", msg);
+            realm.create('MessageJob', msg);
         });
-    }
-}
+    },
+};

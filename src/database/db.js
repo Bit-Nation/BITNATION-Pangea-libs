@@ -30,9 +30,9 @@ export interface DBInterface {
  * @param {number} schemaVersionAt If specified, force the schema version to be locked at this number. Not intended for use in production.
  * @return {DBInterface}
  */
-export default function dbFactory(path: string, schemaVersionAt : number = -1): DBInterface {
+export default function dbFactory(path: string, schemaVersionAt: number = -1): DBInterface {
     function getRealmOptions(version) {
-        if (version < 0){
+        if (version < 0) {
             version = 0;
         }
 
@@ -41,16 +41,16 @@ export default function dbFactory(path: string, schemaVersionAt : number = -1): 
             path: path,
             schema: s.schema,
             schemaVersion: s.schemaVersion,
-            migration: s.migration
+            migration: s.migration,
         };
     };
 
     let latestVersion = schemaVersionAt >= 0 ? schemaVersionAt : schemata.LatestSchemaVersion;
-    if (latestVersion > schemata.LatestSchemaVersion){
-        throw "schemaVersionAt is out of range. Must be from 0 to " + schemata.LatestSchemaVersion;
+    if (latestVersion > schemata.LatestSchemaVersion) {
+        throw 'schemaVersionAt is out of range. Must be from 0 to ' + schemata.LatestSchemaVersion;
     }
 
-    //Perform migrations linearly, if needed
+    // Perform migrations linearly, if needed
     let currentSchemaVersion = Realm.schemaVersion(path);
     if (schemaVersionAt >= 0) {
         currentSchemaVersion = schemaVersionAt;
@@ -62,7 +62,7 @@ export default function dbFactory(path: string, schemaVersionAt : number = -1): 
         }
         const realmOptions = getRealmOptions(currentSchemaVersion);
         const tempRealm = new Realm(realmOptions);
-        tempRealm.close(); //If we are not in the final iteration of the DB opening, then we need to close the DB.
+        tempRealm.close(); // If we are not in the final iteration of the DB opening, then we need to close the DB.
         currentSchemaVersion++;
     }
 
@@ -85,11 +85,11 @@ export default function dbFactory(path: string, schemaVersionAt : number = -1): 
                 .catch(rej);
         }),
 
-        close: (): Promise<*> => new Promise((res, rej) =>  {
+        close: (): Promise<*> => new Promise((res, rej) => {
             realm
                 .then((r) => res(r.close()))
                 .catch(rej);
-        })
+        }),
 
     };
 

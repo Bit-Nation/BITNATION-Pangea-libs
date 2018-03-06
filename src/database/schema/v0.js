@@ -1,5 +1,5 @@
 // @flow
-// Schema v0: Effective from app beginning to 0.3.1 
+// Schema v0: Effective from app beginning to 0.3.1
 
 /**
  * @typedef ProfileType
@@ -211,7 +211,7 @@ export const NationSchema = {
     },
 };
 
-export const schemata = 
+export const schemata =
 [
     ProfileSchema,
     AccountBalanceSchema,
