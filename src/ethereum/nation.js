@@ -308,49 +308,69 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
          * @return {Promise<void>}
          */
         joinNation: (nation: NationType): Promise<void> => new Promise((res, rej) => {
-            if (!nation.stateMutateAllowed) {
-                return rej({
-                    transKey: NATION_STATE_MUTATE_NOT_POSSIBLE,
-                });
-            }
+            db
+              .query((realm) => realm.objects('Nation').filtered(`id = "${nation.id}"`))
+              .then((nations: Array<NationType>) => {
+                  if (nations.length === 0) {
+                      return rej('system_error.nation.does_not_exist');
+                  }
 
-            nationContract.joinNation(nation.idInSmartContract, function(err, txHash) {
-                if (err) {
-                    return rej(err);
-                }
+                  const nation = nations[0];
 
-                txQueue
-                    .jobFactory(txHash, TX_JOB_TYPE_NATION_JOIN)
-                    .then((job: TransactionJobType) => db.write((_) => {
-                        nation.tx = job;
-                        nation.stateMutateAllowed = false;
-                        return job;
-                    }))
-                    .then((_) => res())
-                    .catch(rej);
-            });
+                  if (!nation.stateMutateAllowed) {
+                      return rej({
+                          transKey: NATION_STATE_MUTATE_NOT_POSSIBLE,
+                      });
+                  }
+
+                  nationContract.joinNation(nation.idInSmartContract, function (err, txHash) {
+                      if (err) {
+                          return rej(err);
+                      }
+
+                      txQueue
+                        .jobFactory(txHash, TX_JOB_TYPE_NATION_JOIN)
+                        .then((job: TransactionJobType) => db.write((_) => {
+                            nation.tx = job;
+                            nation.stateMutateAllowed = false;
+                            return job;
+                        }))
+                        .then((_) => res())
+                        .catch(rej);
+                  });
+              });
         }),
         leaveNation: (nation: NationType): Promise<void> => new Promise((res, rej) => {
-            if (!nation.stateMutateAllowed) {
-                return rej({
-                    transKey: NATION_STATE_MUTATE_NOT_POSSIBLE,
-                });
-            }
-
-            nationContract.leaveNation(nation.idInSmartContract, function(err, txHash) {
-                if (err) {
-                    return rej(err);
+          db
+            .query((realm) => realm.objects('Nation').filtered(`id = "${nation.id}"`))
+            .then((nations: Array<NationType>) => {
+                if (nations.length === 0) {
+                    return rej('system_error.nation.does_not_exist');
                 }
 
-                txQueue
-                    .jobFactory(txHash, TX_JOB_TYPE_NATION_LEAVE)
-                    .then((job: TransactionJobType) => db.write((_) => {
-                        nation.tx = job;
-                        nation.stateMutateAllowed = false;
-                        return job;
-                    }))
-                    .then((_) => res())
-                    .catch(rej);
+                const nation = nations[0];
+
+                if (!nation.stateMutateAllowed) {
+                    return rej({
+                        transKey: NATION_STATE_MUTATE_NOT_POSSIBLE,
+                    });
+                }
+
+                nationContract.leaveNation(nation.idInSmartContract, function (err, txHash) {
+                    if (err) {
+                        return rej(err);
+                    }
+
+                    txQueue
+                      .jobFactory(txHash, TX_JOB_TYPE_NATION_LEAVE)
+                      .then((job: TransactionJobType) => db.write((_) => {
+                          nation.tx = job;
+                          nation.stateMutateAllowed = false;
+                          return job;
+                      }))
+                      .then((_) => res())
+                      .catch(rej);
+                });
             });
         }),
         submitDraft: (nationId: number): Promise<{transKey: string, nation: NationType}> => new Promise((res, rej) => {
