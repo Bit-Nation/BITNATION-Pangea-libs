@@ -268,6 +268,9 @@ export default class TransactionQueue implements TransactionQueueInterface {
                             .catch(done);
                     }, (err) => {
                         // @todo handle error (maybe log?)
+                        if (err) {
+                            console.log(err);
+                        }
                         this._ee.emit(TRANSACTION_QUEUE_FINISHED_CYCLE);
                         setTimeout(processAction, this._processingTimeout);
                     });
@@ -307,6 +310,11 @@ export default class TransactionQueue implements TransactionQueueInterface {
      */
     processTransaction(job: TransactionJobType, customProcessor: (txSuccess: boolean, job: TransactionJobType) => Promise<Msg | null>): Promise<void> {
         return new Promise((res, rej) => {
+            // We need to process pending job's
+            if (job.status !== TX_JOB_STATUS_PENDING) {
+                return res();
+            }
+
             this._web3.eth.getTransactionReceipt(job.txHash, (err, receipt) => {
                 if (err) {
                     return rej(err);
@@ -319,22 +327,48 @@ export default class TransactionQueue implements TransactionQueueInterface {
 
                 customProcessor('0x1' === receipt.status, job)
                     .then((result: Msg | null) => {
-                        if (!result) {
-                            return res();
-                        }
+                        waterfall(
+                            [
+                                (cb) => {
+                                    if (!result) {
+                                        return cb();
+                                    }
 
-                        this
-                            ._msgQueue
-                            .addJob(result)
-                            .then((_) => {
-                                // @todo log
-                                res();
-                            })
-                            .catch((_) => {
-                                // @todo log
-                                rej();
-                            });
-                    });
+                                    this
+                                        ._msgQueue
+                                        .addJob(result)
+                                        .then((_) => {
+                                            // @todo log
+                                            cb();
+                                        })
+                                        .catch(cb);
+                                },
+                                (cb) => {
+                                    //Job.nation will be an list (array like) which is strange because an job can only have one nation
+                                    const nation = job.nation;
+
+                                    if (nation && nation[0]) {
+                                        this
+                                            ._db
+                                            .write((realm) => {
+                                                nation[0].resetStateMutateAllowed = true;
+                                            })
+                                            .then((_) => cb())
+                                            .catch(cb);
+                                    } else {
+                                        cb();
+                                    }
+                                },
+                            ],
+                            function(error) {
+                                if (error) {
+                                    return rej(error);
+                                }
+                                return res();
+                            }
+                        );
+                    })
+                    .catch(rej);
             });
         });
     }

@@ -1,7 +1,9 @@
 import TransactionQueue, {
-    TX_JOB_TYPE_NATION_JOIN, Msg, TX_JOB_TYPE_NATION_CREATE,
+    TX_JOB_TYPE_NATION_JOIN, TX_JOB_TYPE_NATION_CREATE,
     TX_JOB_STATUS_PENDING, TX_JOB_TYPE_NATION_LEAVE, TX_JOB_TYPE_ETH_SEND,
+    TX_JOB_STATUS_SUCCESS,
 } from './transaction';
+import msgQueueFactory, {Msg} from './messaging';
 import type {TransactionJobType} from '../database/schemata';
 import {TRANSACTION_QUEUE_JOB_ADDED, TRANSACTION_QUEUE_FINISHED_CYCLE} from '../events';
 import dbFactory from '../database/db';
@@ -112,7 +114,42 @@ describe('transaction queue', () => {
                 .catch(done.fail);
         });
     });
-    describe('transactionProcessor', () => {
+    describe('processTransaction', () => {
+        test('set resetStateMutateAllowed of nation to false if job is responsible for processing a nation', (done) => {
+            const db = dbFactory(dbPath());
+
+            const web3Mock = {
+                eth: {
+                    getTransactionReceipt: jest.fn((txHash, cb) => {
+                        expect(txHash).toBe('0x695e286ad66da4d21aadcc588bf5b92ea29839813dd392915b204eb9426c4294');
+                        cb(null, {status: '0x1'});
+                    }),
+                },
+            };
+
+            const txQueueInstance = new TransactionQueue(db, new EventEmitter(), web3Mock, msgQueueFactory(new EventEmitter(), db));
+
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {id: 1, created: false}, {
+                    tx: {
+                        txHash: '0x695e286ad66da4d21aadcc588bf5b92ea29839813dd392915b204eb9426c4294',
+                        type: TX_JOB_TYPE_NATION_CREATE,
+                        status: TX_JOB_STATUS_PENDING,
+                    },
+                })))
+                .then((nation) => {
+                    expect(nation.resetStateMutateAllowed).toBeFalsy();
+
+                    txQueueInstance
+                        .processTransaction(nation.tx, txQueueInstance._processors[nation.tx.type])
+                        .then((_) => {
+                            expect(nation.resetStateMutateAllowed).toBeTruthy();
+                            done();
+                        })
+                        .catch();
+                })
+                .catch(done.fail);
+        });
         test('web3 error', (done) => {
             const db = dbFactory(dbPath());
 
@@ -130,7 +167,7 @@ describe('transaction queue', () => {
             const txQueueInstance = new TransactionQueue(db, new EventEmitter(), web3Mock);
 
             txQueueInstance
-                .processTransaction({txHash: 'abc'}, () => {})
+                .processTransaction({txHash: 'abc', status: TX_JOB_STATUS_PENDING}, () => {})
                 .then(done.fail)
                 .catch((e) => {
                     expect(e).toBe(error);
@@ -207,9 +244,9 @@ describe('transaction queue', () => {
 
             const txQueueInstance = new TransactionQueue(db, new EventEmitter(), web3Mock, msgQueueMock);
             txQueueInstance
-                .processTransaction({txHash: 'abc'}, (txSuccess, jobType) => {
+                .processTransaction({txHash: 'abc', status: TX_JOB_STATUS_PENDING}, (txSuccess, jobType) => {
                     expect(txSuccess).toBeTruthy();
-                    expect(jobType).toEqual({txHash: 'abc'});
+                    expect(jobType).toEqual({txHash: 'abc', status: 200});
                     return new Promise((res, rej) => res(dummyMessage));
                 })
                 .then((_) => {
@@ -244,7 +281,7 @@ describe('transaction queue', () => {
             };
 
             const msgQueueMock = {
-
+                addJob: () => new Promise((res, rej) => res()),
             };
 
             const txQueue = new TransactionQueue(db, ee, web3Mock, msgQueueMock);
@@ -254,7 +291,7 @@ describe('transaction queue', () => {
             // Reset the processor since we need an custom for this testing
             txQueue._processors = {
                 'NATION_JOIN': (txSuccess:boolean, job:TransactionJobType) => {
-                    return new Msg('ok');
+                    return new Promise((res, rej) => res(new Msg('ok')));
                 },
             };
 

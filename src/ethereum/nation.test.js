@@ -9,6 +9,19 @@ const Web3 = require('web3');
 const randomPath = () => 'database/'+Math.random();
 
 describe('nation', () => {
+    const nationData = {
+        nationName: 'Bitnation',
+        nationDescription: 'We <3 cryptography',
+        exists: true,
+        virtualNation: false,
+        nationCode: 'Code civil',
+        lawEnforcementMechanism: 'xyz',
+        profit: true,
+        nonCitizenUse: false,
+        diplomaticRecognition: false,
+        decisionMakingProcess: 'dictatorship',
+        governanceService: 'Security',
+    };
     test('nations', (done) => {
         const txQueue = {
             addJob: () => new Promise((res, rej) => res()),
@@ -31,20 +44,6 @@ describe('nation', () => {
         web3.eth.defaultAccount = '0x85c725a18b09907e874229fcaf36f4e16792214d';
 
         const nations = nationsFactory(dbFactory(randomPath()), txQueue, web3, ee, nationContractMock);
-
-        const nationData = {
-            nationName: 'Bitnation',
-            nationDescription: 'We <3 cryptography',
-            exists: true,
-            virtualNation: false,
-            nationCode: 'Code civil',
-            lawEnforcementMechanism: 'xyz',
-            profit: true,
-            nonCitizenUse: false,
-            diplomaticRecognition: false,
-            decisionMakingProcess: 'dictatorship',
-            governanceService: 'Security',
-        };
 
         nations
             .saveDraft(nationData)
@@ -72,30 +71,61 @@ describe('nation', () => {
             const nationContractMock = {
                 joinNation: jest.fn(function(nationId, cb) {
                     expect(nationId).toEqual(4);
-                    cb();
+                    cb(null, '0x614d71dec834787a24ad0e2b1d465188a13efa189338216c7f56fef0f8053b2f');
                 }),
             };
 
             const web3 = new Web3(new Web3.providers.HttpProvider('https://rinkeby.infura.io/d'));
             web3.eth.defaultAccount = '0x85c725a18b09907e874229fcaf36f4e16792214d';
 
-            const nations = nationsFactory(null, null, null, null, nationContractMock);
+            const db = dbFactory(randomPath());
 
-            nations
-                .joinNation(4)
-                .then((_) => {
-                    expect(_).toBeUndefined();
-                    done();
+            const txQueue = new TxQueue(db, new EventEmitter());
+
+            const nations = nationsFactory(db, txQueue, null, null, nationContractMock);
+
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {id: 1, idInSmartContract: 4, stateMutateAllowed: true, created: false})))
+                .then((nation) => {
+                    expect(nation.tx).toBeNull();
+                    nations
+                        .joinNation(nation)
+                        .then((_) => {
+                            expect(nation.tx.txHash).toBe('0x614d71dec834787a24ad0e2b1d465188a13efa189338216c7f56fef0f8053b2f');
+                            expect(nation.tx.type).toBe('NATION_JOIN');
+                            expect(nation.tx.status).toBe(200);
+                            expect(nation.stateMutateAllowed).toBeFalsy();
+
+                            return db.query((realm) => realm.objects('TransactionJob'));
+                        })
+                        .then((jobs) => {
+                            expect(jobs[0].txHash).toBe('0x614d71dec834787a24ad0e2b1d465188a13efa189338216c7f56fef0f8053b2f');
+                            expect(jobs[0].type).toBe('NATION_JOIN');
+                            expect(jobs[0].status).toBe(200);
+
+                            done();
+                        })
+                        .catch(done.fail);
                 })
                 .catch(done.fail);
         });
+        test('state mutate not allowed', (done) => {
+            const nations = nationsFactory();
 
-        test('fail', (done) => {
+            nations
+                .joinNation({})
+                .then(done.fail)
+                .catch((e) => {
+                    expect(e).toEqual({
+                        transKey: 'nation.state_mutate_not_possible',
+                    });
+                    done();
+                });
+        });
+        test('fail web3 error', (done) => {
             const nationContractMock = {
                 joinNation: jest.fn(function(nationId, cb) {
-                    expect(nationId).toEqual(4);
                     cb('i_am_a_error');
-                    done();
                 }),
             };
 
@@ -105,7 +135,7 @@ describe('nation', () => {
             const nations = nationsFactory(null, null, null, null, nationContractMock);
 
             nations
-                .joinNation(4)
+                .joinNation({stateMutateAllowed: true})
                 .then((_) => {
                     done.fail('should be rejected');
                 })
@@ -121,30 +151,61 @@ describe('nation', () => {
             const nationContractMock = {
                 leaveNation: jest.fn(function(nationId, cb) {
                     expect(nationId).toEqual(4);
-                    cb();
+                    cb(null, '0x614d71dec834787a24ad0e2b1d465188a13efa189338216c7f56fef0f8053b2f');
                 }),
             };
 
             const web3 = new Web3(new Web3.providers.HttpProvider('https://rinkeby.infura.io/d'));
             web3.eth.defaultAccount = '0x85c725a18b09907e874229fcaf36f4e16792214d';
 
-            const nations = nationsFactory(null, null, null, null, nationContractMock);
+            const db = dbFactory(randomPath());
 
-            nations
-                .leaveNation(4)
-                .then((_) => {
-                    expect(_).toBeUndefined();
-                    done();
+            const txQueue = new TxQueue(db, new EventEmitter());
+
+            const nations = nationsFactory(db, txQueue, null, null, nationContractMock);
+
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {id: 1, idInSmartContract: 4, stateMutateAllowed: true, created: false})))
+                .then((nation) => {
+                    expect(nation.tx).toBeNull();
+                    nations
+                        .leaveNation(nation)
+                        .then((_) => {
+                            expect(nation.tx.txHash).toBe('0x614d71dec834787a24ad0e2b1d465188a13efa189338216c7f56fef0f8053b2f');
+                            expect(nation.tx.type).toBe('NATION_LEAVE');
+                            expect(nation.tx.status).toBe(200);
+                            expect(nation.stateMutateAllowed).toBeFalsy();
+
+                            return db.query((realm) => realm.objects('TransactionJob'));
+                        })
+                        .then((jobs) => {
+                            expect(jobs[0].txHash).toBe('0x614d71dec834787a24ad0e2b1d465188a13efa189338216c7f56fef0f8053b2f');
+                            expect(jobs[0].type).toBe('NATION_LEAVE');
+                            expect(jobs[0].status).toBe(200);
+
+                            done();
+                        })
+                        .catch(done.fail);
                 })
                 .catch(done.fail);
         });
+        test('state mutate not allowed', (done) => {
+            const nations = nationsFactory();
 
-        test('fail', (done) => {
+            nations
+                .leaveNation({})
+                .then(done.fail)
+                .catch((e) => {
+                    expect(e).toEqual({
+                        transKey: 'nation.state_mutate_not_possible',
+                    });
+                    done();
+                });
+        });
+        test('fail - web3 error', (done) => {
             const nationContractMock = {
                 leaveNation: jest.fn(function(nationId, cb) {
-                    expect(nationId).toEqual(4);
                     cb('i_am_a_error');
-                    done();
                 }),
             };
 
@@ -154,7 +215,7 @@ describe('nation', () => {
             const nations = nationsFactory(null, null, null, null, nationContractMock);
 
             nations
-                .leaveNation(4)
+                .leaveNation({stateMutateAllowed: true})
                 .then((_) => {
                     done.fail('should be rejected');
                 })
@@ -344,6 +405,8 @@ describe('nation', () => {
                         idInSmartContract: -1,
                         joined: false,
                         tx: null,
+                        resetStateMutateAllowed: false,
+                        stateMutateAllowed: true,
                     });
 
                     nationData.nationName = 'updated nation name';
@@ -444,6 +507,41 @@ describe('nation', () => {
                 .catch(done.fail);
         });
     });
+    test('error on try to submit if stateMutateAllowed is false', (done) => {
+        const nationData = {
+            nationName: 'Bitnation',
+            nationDescription: 'We <3 cryptography',
+            exists: true,
+            virtualNation: false,
+            nationCode: 'Code civil',
+            lawEnforcementMechanism: 'xyz',
+            profit: true,
+            nonCitizenUse: false,
+            diplomaticRecognition: false,
+            decisionMakingProcess: 'dictatorship',
+            governanceService: 'Security',
+            stateMutateAllowed: false,
+            id: 1,
+            created: false,
+        };
+
+        const db = dbFactory(randomPath());
+
+        const nationService = nationsFactory(db, new TxQueue(db));
+
+        db
+            .write((realm) => realm.create('Nation', nationData))
+            .then((_) => nationService.submitDraft(1))
+            .then((_) => {
+                done.fail('I expect saveDraft to reject since stateMutateAllowed = false');
+            })
+            .catch((e) => {
+                expect(e).toEqual({
+                    transKey: 'nation.state_mutate_not_possible',
+                });
+                done();
+            });
+    });
     describe('saveAndSubmit', () => {
         test('success', (done) => {
             const db = dbFactory(randomPath());
@@ -494,6 +592,8 @@ describe('nation', () => {
                     expect(n.id).toBe(1);
                     expect(n.idInSmartContract).toBe(-1);
                     expect(n.joined).toBe(false);
+                    expect(n.stateMutateAllowed).toBeFalsy();
+                    expect(n.resetStateMutateAllowed).toBeFalsy();
 
                     expect(n.tx.txHash).toBe('0xbe26a83c5248034f6c37eefb175c88e2815f5920354e37798a657387fa3b4736');
                     expect(n.tx.type).toBe('NATION_CREATE');
