@@ -17,7 +17,6 @@ export interface DBInterface {
 
     /**
      * Expect an callback that that will receive an instance of realm.
-     * The callback should return nothing.
      */
     write(writeAction: (realm: Realm) => any) : Promise<any>;
 
@@ -36,7 +35,7 @@ export default function dbFactory(path: string, schemaVersionAt : number = -1): 
         if (version < 0){
             version = 0;
         }
-    
+
         const s = schemata.Schemas[version];
         return {
             path: path,
@@ -91,7 +90,7 @@ export default function dbFactory(path: string, schemaVersionAt : number = -1): 
                 .then((r) => res(r.close()))
                 .catch(rej);
         })
-        
+
     };
 
     return dbImplementation;

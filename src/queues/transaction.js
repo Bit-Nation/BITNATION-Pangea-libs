@@ -344,6 +344,7 @@ export default class TransactionQueue implements TransactionQueueInterface {
                                         .catch(cb);
                                 },
                                 (cb) => {
+                                    //Job.nation will be an list (array like) which is strange because an job can only have one nation
                                     const nation = job.nation;
 
                                     if (nation && nation[0]) {

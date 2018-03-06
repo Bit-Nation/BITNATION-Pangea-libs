@@ -177,16 +177,12 @@ describe('migrate', () => {
 
         const path = dbPath();
 
-        function close(db) {
-            db.close();
-        }
-
         //Pass 1
         let db = database(path);
         await db
           .write(r => "foo")
-          .then(() => close(db));
-        
+          .then(() => db.close());
+
         //Pass 2
         db = database(path);
         await db
@@ -197,7 +193,7 @@ describe('migrate', () => {
 
     test('Max schema version in schemata.js should be consistent with schema file count.', () => {
         let fs = require('fs');
-        
+
         const expectedCount = schemata.LatestSchemaVersion + 1;
 
         let schemaFiles = fs.readdirSync("./src/database/schema/").filter(name => name.endsWith('.js'));
@@ -214,12 +210,11 @@ describe('migrate', () => {
         expect(schemata.Schemas.length).toEqual(schemata.LatestSchemaVersion + 1);
     });
 
-    test('Schema files must have schemata', () => { 
-        // Since schema files themselves can't be imported dynamically, 
+    test('Schema files must have schemata', () => {
+        // Since schema files themselves can't be imported dynamically,
         // We are testing that 'schema' exists within the schemata.Schemas elements
         // rather than testing the files directly
-        let s = schemata.Schemas;
-        schemata.Schemas.forEach(schema => { 
+        schemata.Schemas.forEach(schema => {
             expect(Array.isArray(schema.schema)).toBe(true);
             expect(schema.schema.length).toBeGreaterThan(0);
         });
