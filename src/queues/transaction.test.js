@@ -451,7 +451,13 @@ describe('transaction queue', () => {
                             expect(nation.tx.status).toBe(300);
                             expect(nation.tx.type).toBe(TX_JOB_TYPE_NATION_JOIN);
 
-                            done();
+                            db
+                                .query((realm ) => realm.objects('Nation'))
+                                .then((nations) => {
+                                    expect(nations[0].joined).toBeTruthy();
+
+                                    done();
+                                });
                         })
                         .catch(done.fail);
                 })
@@ -528,8 +534,10 @@ describe('transaction queue', () => {
                         status: TX_JOB_STATUS_PENDING,
                         type: TX_JOB_TYPE_NATION_LEAVE,
                     },
+                    joined: true,
                 })))
                 .then((nation) => {
+                    expect(nation.joined).toBeTruthy();
                     txQueue
                         ._processors['NATION_LEAVE'](true, nation.tx)
                         .then((msg:Msg) => {
@@ -544,6 +552,8 @@ describe('transaction queue', () => {
                             expect(nation.tx.txHash).toBe('0x3b45d7e69eb85a18769ae79790879aa883b1732dd2fcd82ef5f561ad9db73fd9');
                             expect(nation.tx.status).toBe(300);
                             expect(nation.tx.type).toBe(TX_JOB_TYPE_NATION_LEAVE);
+
+                            expect(nation.joined).toBeFalsy();
 
                             done();
                         })

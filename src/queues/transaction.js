@@ -96,13 +96,14 @@ export default class TransactionQueue implements TransactionQueueInterface {
                 }
                 // $FlowFixMe WE check above if the nation exist. So no reason to complain.
                 // The relation to nation is an realm result's object
-                const nationName = job.nation[0].nationName;
+                const nation = job.nation[0];
 
                 if (typeof txSuccess === 'boolean') {
                     this
                         ._db
                         .write((realm) => {
                             if (txSuccess === true) {
+                                nation.joined = true;
                                 job.status = TX_JOB_STATUS_SUCCESS;
                                 return;
                             }
@@ -110,10 +111,10 @@ export default class TransactionQueue implements TransactionQueueInterface {
                             job.status = TX_JOB_STATUS_FAILED;
                         })
                         .then((_) => {
-                            let msg = new Msg(NATION_JOIN_FAILED, {nationName: nationName}, true);
+                            let msg = new Msg(NATION_JOIN_FAILED, {nationName: nation.nationName}, true);
 
                             if (txSuccess === true) {
-                                msg = new Msg(NATION_JOIN_SUCCEED, {nationName: nationName}, true);
+                                msg = new Msg(NATION_JOIN_SUCCEED, {nationName: nation.nationName}, true);
                             };
 
                             msg.display(NATION_ALERT_HEADING);
@@ -130,13 +131,14 @@ export default class TransactionQueue implements TransactionQueueInterface {
                 }
                 // $FlowFixMe WE check above if the nation exist. So no reason to complain.
                 // The relation to nation is an realm result's object
-                const nationName = job.nation[0].nationName;
+                const nation = job.nation[0];
 
                 if (typeof txSuccess === 'boolean') {
                     this
                         ._db
                         .write((realm) => {
                             if (txSuccess === true) {
+                                nation.joined = false;
                                 job.status = TX_JOB_STATUS_SUCCESS;
                                 return;
                             }
@@ -144,10 +146,10 @@ export default class TransactionQueue implements TransactionQueueInterface {
                             job.status = TX_JOB_STATUS_FAILED;
                         })
                         .then((_) => {
-                            let msg = new Msg(NATION_LEAVE_FAILED, {nationName: nationName}, true);
+                            let msg = new Msg(NATION_LEAVE_FAILED, {nationName: nation.nationName}, true);
 
                             if (txSuccess === true) {
-                                msg = new Msg(NATION_LEAVE_SUCCEED, {nationName: nationName}, true);
+                                msg = new Msg(NATION_LEAVE_SUCCEED, {nationName: nation.nationName}, true);
                             }
 
                             msg.display(NATION_ALERT_HEADING);
@@ -344,7 +346,7 @@ export default class TransactionQueue implements TransactionQueueInterface {
                                         .catch(cb);
                                 },
                                 (cb) => {
-                                    //Job.nation will be an list (array like) which is strange because an job can only have one nation
+                                    // Job.nation will be an list (array like) which is strange because an job can only have one nation
                                     const nation = job.nation;
 
                                     if (nation && nation[0]) {
