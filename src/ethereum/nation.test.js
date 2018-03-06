@@ -110,17 +110,23 @@ describe('nation', () => {
                 .catch(done.fail);
         });
         test('state mutate not allowed', (done) => {
-            const nations = nationsFactory();
+            const db = dbFactory(randomPath());
 
-            nations
-                .joinNation({})
-                .then(done.fail)
-                .catch((e) => {
-                    expect(e).toEqual({
-                        transKey: 'nation.state_mutate_not_possible',
+            const nations = nationsFactory(db);
+
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {id: 1, idInSmartContract: 4, stateMutateAllowed: false, created: false})))
+                .then((nation) => {
+                    nations
+                        .joinNation(nation)
+                        .then(done.fail)
+                        .catch((e) => {
+                            expect(e).toEqual({
+                                transKey: 'nation.state_mutate_not_possible',
+                            });
+                        done();
                     });
-                    done();
-                });
+                })
         });
         test('fail web3 error', (done) => {
             const nationContractMock = {
@@ -128,20 +134,25 @@ describe('nation', () => {
                     cb('i_am_a_error');
                 }),
             };
+            const db = dbFactory(randomPath());
 
             const web3 = new Web3(new Web3.providers.HttpProvider('https://rinkeby.infura.io/d'));
             web3.eth.defaultAccount = '0x85c725a18b09907e874229fcaf36f4e16792214d';
 
-            const nations = nationsFactory(null, null, null, null, nationContractMock);
+            const nations = nationsFactory(db, null, null, null, nationContractMock);
 
-            nations
-                .joinNation({stateMutateAllowed: true})
-                .then((_) => {
-                    done.fail('should be rejected');
-                })
-                .catch((error) => {
-                    expect(error).toBe('i_am_a_error');
-                    done();
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {id: 1, idInSmartContract: 4, stateMutateAllowed: true, created: false})))
+                .then((nation) => {
+                    nations
+                        .joinNation(nation)
+                        .then((_) => {
+                            done.fail('should be rejected');
+                        })
+                        .catch((error) => {
+                              expect(error).toBe('i_am_a_error');
+                             done();
+                        });
                 });
         });
     });
@@ -190,16 +201,22 @@ describe('nation', () => {
                 .catch(done.fail);
         });
         test('state mutate not allowed', (done) => {
-            const nations = nationsFactory();
+            const db = dbFactory(randomPath());
 
-            nations
-                .leaveNation({})
-                .then(done.fail)
-                .catch((e) => {
-                    expect(e).toEqual({
-                        transKey: 'nation.state_mutate_not_possible',
-                    });
-                    done();
+            const nations = nationsFactory(db);
+
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {id: 1, idInSmartContract: 4, stateMutateAllowed: false, created: false})))
+                .then((nation) => {
+                     nations
+                        .leaveNation(nation)
+                        .then(done.fail)
+                        .catch((e) => {
+                            expect(e).toEqual({
+                                transKey: 'nation.state_mutate_not_possible',
+                            });
+                            done();
+                        });
                 });
         });
         test('fail - web3 error', (done) => {
@@ -209,19 +226,25 @@ describe('nation', () => {
                 }),
             };
 
+            const db = dbFactory(randomPath());
+
             const web3 = new Web3(new Web3.providers.HttpProvider('https://rinkeby.infura.io/d'));
             web3.eth.defaultAccount = '0x85c725a18b09907e874229fcaf36f4e16792214d';
 
-            const nations = nationsFactory(null, null, null, null, nationContractMock);
+            const nations = nationsFactory(db, null, null, null, nationContractMock);
 
-            nations
-                .leaveNation({stateMutateAllowed: true})
-                .then((_) => {
-                    done.fail('should be rejected');
-                })
-                .catch((error) => {
-                    expect(error).toBe('i_am_a_error');
-                    done();
+            db
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {id: 1, idInSmartContract: 4, stateMutateAllowed: true, created: false})))
+                .then((nation) => {
+                    nations
+                        .leaveNation(nation)
+                        .then((_) => {
+                              done.fail('should be rejected');
+                        })
+                        .catch((error) => {
+                            expect(error).toBe('i_am_a_error');
+                            done();
+                        });
                 });
         });
     });
