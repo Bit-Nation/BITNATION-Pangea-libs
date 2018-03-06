@@ -116,8 +116,9 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
         saveDraft: (nationData: NationInputType): Promise<{transKey: string, nation: NationType}> => new Promise((res, rej) => {
             db
                 .write((realm) => {
+                    const sorted = realm.objects('Nation').sorted('id', true);
                     return realm.create('Nation', {
-                        id: realm.objects('Nation').length +1,
+                        id: (sorted.length === 0 ? 1 : sorted[0].id +1),
                         created: false,
                         nationName: nationData.nationName,
                         nationDescription: nationData.nationDescription,
