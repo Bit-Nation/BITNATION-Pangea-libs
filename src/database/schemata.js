@@ -42,7 +42,7 @@ export {
 
  // This must be bumped each time a new file is added
 /** The latest schema version present in this codebase. */
-export const LatestSchemaVersion : number = 1;
+export const LatestSchemaVersion : number = 2;
 
 const schemaModules = [
     require('./schema/v0.js'), // Path must be hard-coded

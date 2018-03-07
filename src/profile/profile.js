@@ -6,6 +6,7 @@ import type {PublicProfile} from '../specification/publicProfile.js';
 import type {ProfileType} from '../database/schemata';
 import type {EthUtilsInterface} from '../ethereum/utils';
 import type {PrivateKeyType} from '../specification/privateKey';
+const uString = require('unique-string');
 export const PROFILE_VERSION = '1.0.0';
 
 /**
@@ -53,6 +54,7 @@ export default function profileFactory(db: DBInterface, ethUtils: EthUtilsInterf
                 .write((realm: any) => {
                     // Since we only support one profile at the moment, we can just set this always to 1
                     profile.id = 1;
+                    profile.uid = uString();
 
                     realm.create('Profile', profile, true);
                 })
@@ -78,6 +80,7 @@ export default function profileFactory(db: DBInterface, ethUtils: EthUtilsInterf
                         longitude: profiles[0].longitude,
                         image: profiles[0].image,
                         version: profiles[0].version,
+                        uid: profiles[0].uid,
                     };
 
                     res(profile);

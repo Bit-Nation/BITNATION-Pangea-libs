@@ -6,6 +6,7 @@ import database from './db';
 const realm = require('realm');
 const _0Schema = require('./schema/v0.js');
 const _1Schema = require('./schema/v1.js');
+const _2Schema = require('./schema/v2.js');
 const execSync = require('child_process').execSync;
 
 const dbPath = () => 'database/'+Math.random();
@@ -165,6 +166,67 @@ describe('migrate', () => {
                 expect(nations[0].tx.txHash).toBe('0x58f4465fc2f461b4508f73049e087ae32261309c5314f78e0be16a954e892c3f');
                 expect(nations[0].tx.status).toBe(200);
                 expect(nations[0].tx.type).toBe('NATION_CREATE');
+
+                done();
+
+            })
+            .catch(done.fail)
+
+    });
+
+    //If we can open the same path without a promise rejection that mean's we succeed.
+    //Realm will reject the promise if we miss somethig
+    test('migrate from 0.3.2 -> 0.3.3', (done) => {
+
+        const dbp = dbPath();
+
+        const _032Factory = () => realm.open({
+            path: dbp,
+            schema: _1Schema.schemata,
+            schemaVersion: 1,
+            migration: _1Schema.migration
+        });
+
+        const _033Factory = () => realm.open({
+            path: dbp,
+            schema: _2Schema.schemata,
+            schemaVersion: 2,
+            migration: _2Schema.migration
+        });
+
+        _032Factory()
+            .then(db => {
+
+                //Persist test data
+                db.write(() => {
+                    db.create('Profile', {
+                        id: 1,
+                        name: "Florian",
+                        location: "germany",
+                        latitude: "-",
+                        longitude: "-",
+                        description: "",
+                        image: "base64",
+                        version: "1.0.0",
+                    });
+                });
+
+                db.close();
+                return _033Factory();
+            })
+            .then(db => {
+
+                const p = db.objects('Profile')[0];
+
+                expect(p.id).toEqual(1);
+                expect(p.name).toEqual("Florian");
+                expect(p.location).toEqual("germany");
+                expect(p.latitude).toEqual("-");
+                expect(p.longitude).toEqual("-");
+                expect(p.description).toEqual("");
+                expect(p.image).toEqual("base64");
+                expect(p.version).toEqual("1.0.0");
+                expect(typeof p.uid).toEqual("string");
 
                 done();
 
