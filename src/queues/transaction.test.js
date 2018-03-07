@@ -264,14 +264,6 @@ describe('transaction queue', () => {
 
             let rounds = 0;
 
-            ee.on(TRANSACTION_QUEUE_FINISHED_CYCLE, () => {
-                if (rounds === 2) {
-                    done();
-                }
-
-                rounds++;
-            });
-
             const web3Mock = {
                 eth: {
                     getTransactionReceipt: function(hash, cb) {
@@ -301,7 +293,9 @@ describe('transaction queue', () => {
                     txQueue
                         .saveJob(job)
                         .then((_) => {
-                            txQueue.startProcessing();
+                            txQueue
+                                .startProcessing()
+                                .then((_) => done());
                         })
                         .catch(done.fail);
                 })
