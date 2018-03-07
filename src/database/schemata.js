@@ -38,7 +38,7 @@ export {
 
     TransactionJobSchema,
     TransactionJobType,
-} from './schema/v1.js'; // Must be literal hard-coded path, for flow to work
+} from './schema/v2.js'; // Must be literal hard-coded path, for flow to work
 
  // This must be bumped each time a new file is added
 /** The latest schema version present in this codebase. */
@@ -47,6 +47,7 @@ export const LatestSchemaVersion : number = 1;
 const schemaModules = [
     require('./schema/v0.js'), // Path must be hard-coded
     require('./schema/v1.js'),
+    require('./schema/v2.js'),
 ];
 
 /** An array containing each schema from version 0 up to LatestSchemaVersion. */
