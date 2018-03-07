@@ -243,20 +243,18 @@ export default class TransactionQueue implements TransactionQueueInterface {
         });
     }
 
-    startProcessing(): void {
-        if (this._startedWorker) {
-            return;
-        }
+    /**
+     * @desc will process all running job's
+     * @returns {Promise<any>}
+     */
+    startProcessing(): Promise<void> {
+        return new Promise((res, rej) => {
+            this
+                ._db
+                .query((realm) => realm.objects('TransactionJob').filtered('status = "200"'))
+                .then((jobs: Array<TransactionJobType>) => {
+                    jobs.map((job: TransactionJobType) => this._jobStack.push(job));
 
-        this._startedWorker = true;
-
-        this
-            ._db
-            .query((realm) => realm.objects('TransactionJob').filtered('status = "200"'))
-            .then((jobs: Array<TransactionJobType>) => {
-                jobs.map((job: TransactionJobType) => this._jobStack.push(job));
-
-                const processAction = () => {
                     eachSeries(this._jobStack, (job: TransactionJobType, done) => {
                         const p = this._processors[job.type];
 
@@ -271,19 +269,13 @@ export default class TransactionQueue implements TransactionQueueInterface {
                     }, (err) => {
                         // @todo handle error (maybe log?)
                         if (err) {
-                            console.log(err);
+                            return rej(err);
                         }
-                        this._ee.emit(TRANSACTION_QUEUE_FINISHED_CYCLE);
-                        setTimeout(processAction, this._processingTimeout);
+                        setTimeout(res, this._processingTimeout);
                     });
-                };
-
-                processAction();
-            })
-            .catch((e) => {
-                // @todo log
-                console.log(e);
-            });
+                })
+                .catch(rej);
+        });
     }
 
     /**
