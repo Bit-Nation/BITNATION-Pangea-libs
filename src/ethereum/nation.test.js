@@ -115,7 +115,7 @@ describe('nation', () => {
             const nations = nationsFactory(db);
 
             db
-                .write((realm) => realm.create('Nation', Object.assign(nationData, {id: 1, idInSmartContract: 4, stateMutateAllowed: false, created: false})))
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {id: 1, idInSmartContract: 4, stateMutateAllowed: false, created: false, tx: {txHash: 'fake_tx_hash', status: 200, type: 'NATION_JOIN'}})))
                 .then((nation) => {
                     nations
                         .joinNation(nation)
@@ -142,7 +142,7 @@ describe('nation', () => {
             const nations = nationsFactory(db, null, null, null, nationContractMock);
 
             db
-                .write((realm) => realm.create('Nation', Object.assign(nationData, {id: 1, idInSmartContract: 4, stateMutateAllowed: true, created: false})))
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {id: 1, idInSmartContract: 4, stateMutateAllowed: true, created: false, tx: {txHash: 'fake_tx_hash', status: 300, type: 'NATION_JOIN'}})))
                 .then((nation) => {
                     nations
                         .joinNation(nation)
@@ -159,6 +159,20 @@ describe('nation', () => {
 
     describe('leaveNation', () => {
         test('success', (done) => {
+            const nationData = {
+                nationName: 'Bitnation',
+                nationDescription: 'We <3 cryptography',
+                exists: true,
+                virtualNation: false,
+                nationCode: 'Code civil',
+                lawEnforcementMechanism: 'xyz',
+                profit: true,
+                nonCitizenUse: false,
+                diplomaticRecognition: false,
+                decisionMakingProcess: 'dictatorship',
+                governanceService: 'Security',
+            };
+
             const nationContractMock = {
                 leaveNation: jest.fn(function(nationId, cb) {
                     expect(nationId).toEqual(4);
@@ -206,7 +220,7 @@ describe('nation', () => {
             const nations = nationsFactory(db);
 
             db
-                .write((realm) => realm.create('Nation', Object.assign(nationData, {id: 1, idInSmartContract: 4, stateMutateAllowed: false, created: false})))
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {id: 1, idInSmartContract: 4, stateMutateAllowed: false, created: false, tx: {txHash: 'fake_hash', type: 'NATION_JOIN', status: 200}})))
                 .then((nation) => {
                      nations
                         .leaveNation(nation)
@@ -234,7 +248,7 @@ describe('nation', () => {
             const nations = nationsFactory(db, null, null, null, nationContractMock);
 
             db
-                .write((realm) => realm.create('Nation', Object.assign(nationData, {id: 1, idInSmartContract: 4, stateMutateAllowed: true, created: false})))
+                .write((realm) => realm.create('Nation', Object.assign(nationData, {id: 1, idInSmartContract: 4, stateMutateAllowed: true, created: false, tx: {txHash: 'fake_hash', status: 300, type: 'NATION_JOIN'}})))
                 .then((nation) => {
                     nations
                         .leaveNation(nation)
@@ -530,7 +544,7 @@ describe('nation', () => {
                 .catch(done.fail);
         });
     });
-    test('error on try to submit if stateMutateAllowed is false', (done) => {
+    test('error on try to submit if state mutate is not possible', (done) => {
         const nationData = {
             nationName: 'Bitnation',
             nationDescription: 'We <3 cryptography',
@@ -546,6 +560,11 @@ describe('nation', () => {
             stateMutateAllowed: false,
             id: 1,
             created: false,
+            tx: {
+                txHash: 'fake_hash',
+                status: 200,
+                type: 'NATION_JOIN',
+            },
         };
 
         const db = dbFactory(randomPath());
