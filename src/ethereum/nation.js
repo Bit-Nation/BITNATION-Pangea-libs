@@ -61,6 +61,18 @@ export interface NationInterface {
 }
 
 /**
+ * @desc check if the blockchain state of the nation can be mutated
+ * @param nation
+ * @returns {boolean}
+ */
+const canMutateNationState = (nation: NationType): boolean => {
+    if (!nation.tx) {
+        return true;
+    }
+    return nation.tx.status === 200;
+};
+
+/**
  *
  * @param {DBInterface} db
  * @param {TransactionQueueInterface} txQueue
@@ -318,7 +330,7 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
 
                   const nation = nations[0];
 
-                  if (!nation.stateMutateAllowed) {
+                  if (false === canMutateNationState(nation)) {
                       return rej({
                           transKey: NATION_STATE_MUTATE_NOT_POSSIBLE,
                       });
@@ -351,7 +363,7 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
 
                 const nation = nations[0];
 
-                if (!nation.stateMutateAllowed) {
+                if (false === canMutateNationState(nation)) {
                     return rej({
                         transKey: NATION_STATE_MUTATE_NOT_POSSIBLE,
                     });
@@ -382,12 +394,6 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                         return rej('system_error.nation.does_not_exist');
                     }
 
-                    if (!nations[0].stateMutateAllowed) {
-                        return rej({
-                            transKey: NATION_STATE_MUTATE_NOT_POSSIBLE,
-                        });
-                    }
-
                     // it in smart contract is only >= 0 when the nation was written to the blockchain
                     // @todo we really really need to check for if the nation was already submitted. But we need to have the tx queue thing.
                     if (nations[0].idInSmartContract >= 0) {
@@ -395,6 +401,12 @@ export default function(db: DBInterface, txQueue: TransactionQueueInterface, web
                     }
 
                     const nation = nations[0];
+
+                    if (false === canMutateNationState(nation)) {
+                        return rej({
+                            transKey: NATION_STATE_MUTATE_NOT_POSSIBLE,
+                        });
+                    }
 
                     const nationData:NationInputType = {
                         nationName: nation.nationName,
