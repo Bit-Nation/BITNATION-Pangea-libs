@@ -2,7 +2,7 @@
 
 import type {NationType, TransactionJobType} from '../database/schemata';
 import type {DBInterface} from '../database/db';
-import type {TransactionQueueInterface} from '../queues/transaction';
+import type {TransactionQueueInterfacej, TX_JOB_STATUS_SUCCESS} from '../queues/transaction';
 import {
     TX_JOB_TYPE_NATION_CREATE,
     TX_JOB_TYPE_NATION_JOIN,
@@ -69,7 +69,7 @@ const canMutateNationState = (nation: NationType): boolean => {
     if (!nation.tx) {
         return true;
     }
-    return nation.tx.status === 200;
+    return nation.tx.status === TX_JOB_STATUS_SUCCESS;
 };
 
 /**
