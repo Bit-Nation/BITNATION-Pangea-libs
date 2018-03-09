@@ -2,7 +2,8 @@
 
 import type {NationType, TransactionJobType} from '../database/schemata';
 import type {DBInterface} from '../database/db';
-import type {TransactionQueueInterfacej, TX_JOB_STATUS_SUCCESS} from '../queues/transaction';
+import type {TransactionQueueInterface} from '../queues/transaction';
+import {TX_JOB_STATUS_SUCCESS} from '../queues/transaction';
 import {
     TX_JOB_TYPE_NATION_CREATE,
     TX_JOB_TYPE_NATION_JOIN,
